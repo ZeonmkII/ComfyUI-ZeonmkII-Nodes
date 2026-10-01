@@ -40,6 +40,18 @@ export function ensureStyles() {
   color:${ZEON.TEXT}; font-size:11px; min-height:18px;
 }
 .zeon-band .zeon-band-hue { width:8px; height:8px; border-radius:50%; flex:0 0 auto; }
+.zeon-clock {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 24px; line-height: 1.2; text-align: center;
+  padding: 6px 10px 2px 10px; color: ${ZEON.TEXT};
+}
+.zeon-clock.status-running { color: ${ZEON.ACCENT}; }
+.zeon-clock.status-done { color: #5fbf6e; }
+.zeon-clock.status-error { color: #e5484d; }
+.zeon-clock-status {
+  font-size: 10px; color: #9aa0a6; text-align: center;
+  padding-bottom: 6px; letter-spacing: 0.5px;
+}
 `;
   document.head.appendChild(style);
 }
