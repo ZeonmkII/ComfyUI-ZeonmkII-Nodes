@@ -14,11 +14,20 @@ UI graph, verbatim from EXTRA_PNGINFO). We write the same two chunks, the
 same way (PIL PngInfo.add_text + json.dumps). If a native save loads,
 ours loads — same bytes, same rules.
 
-On top of that: filename tokens (%date% %time% %counter% %seed% %steps%
-%cfg% %sampler% %scheduler% %model% %width% %height%), subfolder paths
-under output/, and an A1111-style 'parameters' metadata string built from
-the actual sampler settings — strictly OPTIONAL (off by default), because
-extra chunks are exactly what poisoned the old file.
+On top of that (v0.9.0, the Image-Saver option set):
+  • filename tokens %date% %time% %counter% %seed% %steps% %cfg%
+    %sampler% %scheduler% %model% %width% %height%, with one-click token
+    buttons + a live name preview in the node UI
+  • formats: png (default, native-parity chunks), jpeg and webp (quality
+    slider; webp lossless toggle). JPEG/WebP cannot carry PNG tEXt chunks
+    — that's format physics, not a choice — so for those the workflow
+    travels via the sidecar JSON
+  • save_workflow_as_json: writes a sidecar .json (prompt + workflow)
+    next to the image, any format
+  • subfolder paths under output/ with a traversal guard
+  • an A1111-style 'parameters' chunk built from the actual sampler
+    settings — strictly OPTIONAL (off by default), PNG only, because
+    extra chunks are exactly what poisoned the old file
 """
 
 import json
@@ -31,6 +40,7 @@ from PIL import Image
 from PIL.PngImagePlugin import PngInfo
 
 DEFAULT_FILENAME = "Zeon_%date%_%counter%"
+EXTENSIONS = ["png", "jpeg", "webp"]
 
 
 def _tensor_to_pil(tensor):
@@ -69,7 +79,7 @@ def _meta_values(prompt):
     }
 
 
-def expand_tokens(pattern, meta, width, height, out_dir):
+def expand_tokens(pattern, meta, width, height, out_dir, ext="png"):
     """Expand %tokens%. %counter% is special: native-style '_00001_' suffix,
     bumped past any existing file in the target folder."""
     now = time.localtime()
@@ -94,7 +104,7 @@ def expand_tokens(pattern, meta, width, height, out_dir):
         base = "Zeon"
 
     n = 1
-    while os.path.exists(os.path.join(out_dir, f"{base}_{n:05}_.png")):
+    while os.path.exists(os.path.join(out_dir, f"{base}_{n:05}_.{ext}")):
         n += 1
     return f"{base}_{n:05}_", n
 
@@ -125,11 +135,11 @@ def build_parameters_string(prompt, meta):
 
 class ZeonmkIISaveImage:
     DESCRIPTION = (
-        "Saves PNGs with token-based naming (%date% %time% %counter% %seed% "
+        "Saves images with token-based naming (%date% %time% %counter% %seed% "
         "%steps% %cfg% %sampler% %scheduler% %model% %width% %height%) into "
-        "any subfolder of output/. Embeds the workflow the same way stock "
-        "ComfyUI does — clean prompt + workflow chunks — so dropping the "
-        "image on the canvas loads the REAL workflow."
+        "any subfolder of output/, as PNG (workflow embedded exactly like "
+        "stock ComfyUI — the PNG drop-loads the real workflow), JPEG or WebP "
+        "(quality slider, lossless option, workflow via sidecar JSON)."
     )
 
     @classmethod
@@ -140,7 +150,7 @@ class ZeonmkIISaveImage:
                 "filename": ("STRING", {
                     "multiline": False,
                     "default": DEFAULT_FILENAME,
-                    "tooltip": "Name pattern. Tokens: %date% %time% %counter% %seed% %steps% %cfg% %sampler% %scheduler% %model% %width% %height%.",
+                    "tooltip": "Name pattern. Tokens: %date% %time% %counter% %seed% %steps% %cfg% %sampler% %scheduler% %model% %width% %height%. The token buttons below append these for you.",
                 }),
                 "path": ("STRING", {
                     "multiline": False,
@@ -149,13 +159,33 @@ class ZeonmkIISaveImage:
                 }),
             },
             "optional": {
+                "extension": (EXTENSIONS, {
+                    "default": "png",
+                    "tooltip": "PNG embeds the workflow natively (drop-loadable). JPEG/WebP can't carry PNG chunks — use the sidecar JSON for those.",
+                }),
+                "quality": ("INT", {
+                    "min": 1, "max": 100, "default": 90,
+                    "tooltip": "JPEG / WebP quality. Ignored for PNG.",
+                }),
+                "lossless_webp": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": "WebP only: lossless encoding (quality is then ignored).",
+                }),
+                "optimize_png": ("BOOLEAN", {
+                    "default": True,
+                    "tooltip": "PNG only: smaller files, slightly slower save.",
+                }),
                 "embed_workflow": ("BOOLEAN", {
                     "default": True,
-                    "tooltip": "Embed prompt + workflow chunks exactly like stock ComfyUI, so the PNG drop-loads the real workflow.",
+                    "tooltip": "PNG only: embed prompt + workflow chunks exactly like stock ComfyUI, so the PNG drop-loads the real workflow.",
                 }),
                 "a1111_metadata": ("BOOLEAN", {
                     "default": False,
-                    "tooltip": "Also write an A1111-style 'parameters' chunk (steps/cfg/sampler/seed/model). Extra chunk — leave off unless a tool asks for it.",
+                    "tooltip": "PNG only: also write an A1111-style 'parameters' chunk (steps/cfg/sampler/seed/model). Extra chunk — leave off unless a tool asks for it.",
+                }),
+                "save_workflow_as_json": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": "Any format: write a sidecar .json (prompt + workflow) next to the image.",
                 }),
             },
             "hidden": {
@@ -171,8 +201,16 @@ class ZeonmkIISaveImage:
     CATEGORY = "ZeonmkII"
 
     def save_images(self, images, filename=DEFAULT_FILENAME, path="",
-                    embed_workflow=True, a1111_metadata=False,
+                    extension="png", quality=90, lossless_webp=False,
+                    optimize_png=True, embed_workflow=True,
+                    a1111_metadata=False, save_workflow_as_json=False,
                     prompt=None, extra_pnginfo=None):
+        ext = str(extension or "png").lower()
+        if ext == "jpg":
+            ext = "jpeg"
+        if ext not in EXTENSIONS:
+            ext = "png"
+
         out_root = folder_paths.get_output_directory()
         sub = str(path or "").strip().replace("\\", "/")
         while sub.startswith("/"):
@@ -184,28 +222,47 @@ class ZeonmkIISaveImage:
         os.makedirs(out_dir, exist_ok=True)
 
         meta = _meta_values(prompt)
-        base, start_n = expand_tokens(filename, meta, images.shape[2], images.shape[1], out_dir)
+        base, start_n = expand_tokens(filename, meta, images.shape[2], images.shape[1], out_dir, ext)
 
+        # native-parity chunks — PNG only (JPEG/WebP cannot carry tEXt)
         pnginfo = PngInfo()
-        if embed_workflow:
-            if prompt is not None:
-                pnginfo.add_text("prompt", json.dumps(prompt))
-            if isinstance(extra_pnginfo, dict):
-                for k, v in extra_pnginfo.items():
-                    try:
-                        pnginfo.add_text(k, json.dumps(v))
-                    except Exception:
-                        pass
-        if a1111_metadata:
-            params = build_parameters_string(prompt, meta).replace(
-                "{w}x{h}", f"{images.shape[2]}x{images.shape[1]}")
-            pnginfo.add_text("parameters", params)
+        if ext == "png":
+            if embed_workflow:
+                if prompt is not None:
+                    pnginfo.add_text("prompt", json.dumps(prompt))
+                if isinstance(extra_pnginfo, dict):
+                    for k, v in extra_pnginfo.items():
+                        try:
+                            pnginfo.add_text(k, json.dumps(v))
+                        except Exception:
+                            pass
+            if a1111_metadata:
+                params = build_parameters_string(prompt, meta).replace(
+                    "{w}x{h}", f"{images.shape[2]}x{images.shape[1]}")
+                pnginfo.add_text("parameters", params)
 
         saved = []
         n = start_n
         for i, frame in enumerate(images):
             name = base if i == 0 else f"{base.rsplit('_', 1)[0]}_{n + i:05}_"
-            fp = os.path.join(out_dir, name + ".png")
-            _tensor_to_pil(frame).save(fp, pnginfo=pnginfo)
+            fp = os.path.join(out_dir, name + "." + ext)
+            img = _tensor_to_pil(frame)
+            if ext == "png":
+                img.save(fp, pnginfo=pnginfo, optimize=bool(optimize_png))
+            elif ext == "jpeg":
+                if img.mode not in ("RGB", "L"):
+                    bg = Image.new("RGB", img.size, (0, 0, 0))
+                    if img.mode == "RGBA":
+                        bg.paste(img, mask=img.split()[-1])
+                    else:
+                        bg.paste(img.convert("RGB"))
+                    img = bg
+                img.save(fp, quality=int(quality), optimize=True)
+            else:  # webp
+                img.save(fp, quality=int(quality), lossless=bool(lossless_webp))
+            if save_workflow_as_json and (prompt is not None or extra_pnginfo):
+                with open(os.path.join(out_dir, name + ".json"), "w", encoding="utf-8") as f:
+                    json.dump({"prompt": prompt,
+                               "workflow": (extra_pnginfo or {}).get("workflow")}, f, indent=1)
             saved.append(os.path.relpath(fp, out_root))
         return {"ui": {"images": [{"filename": os.path.basename(s), "subfolder": os.path.dirname(s), "type": "output"} for s in saved]}, "result": (", ".join(saved),)}

@@ -1,17 +1,25 @@
 /**
  * ComfyUI-ZeonmkII-Nodes — Note UI
  *
- * A cut-down Note node: markdown in, rendered view out. The raw text lives
- * in the node's multiline STRING widget (saved with the workflow); this UI
- * renders it live with the pack's skin. ✏ Edit shows the textarea with the
- * render still live below it (WYSIWYG-lite); 👁 Done collapses back to the
- * clean rendered view.
+ * A markdown note that renders on the canvas. The raw text lives in the
+ * node's multiline STRING widget (saved with the workflow); this UI renders
+ * it live with the pack's skin. ✏ Edit shows the textarea with the render
+ * still live below it (WYSIWYG-lite); 👁 Done collapses back to the clean
+ * rendered view.
  *
- * Deliberately markdown, NOT HTML like Pixaroma's note: no sanitizer to
- * respect — everything is escaped before the tiny formatter runs, and
- * links are restricted to http(s). Supported: #/##/### headers, **bold**,
- * *italic*, `code`, - bullets, 1. numbered lists, | tables |, ---
- * separators, [links](https://...).
+ * v0.9.0 hardening ("not rendering anything" on MAGI), the three fixes
+ * Pixaroma's working Note taught:
+ *   1. The view DOM widget declares getMinHeight — without it the Vue
+ *      renderer can give the widget zero height (invisible) while the
+ *      textarea is already hidden → an empty node.
+ *   2. Re-render after onConfigure — nodeCreated fires BEFORE configure
+ *      restores widget values, and the restore may not pass through our
+ *      value interceptor, so the one-shot update could render nothing.
+ *   3. Setup runs in try/catch with console.error — a half-applied setup
+ *      fails visibly instead of silently.
+ *
+ * Markdown subset: #/##/### headers, **bold**, *italic*, `code`, - bullets,
+ * 1. numbered lists, | tables |, --- separators, [links](https://...).
  */
 import { app } from "/scripts/app.js";
 import { ensureStyles, applyNodeSkin, makeToolbar } from "./zeonmkii_skin.js";
@@ -156,52 +164,83 @@ function interceptWidgetValue(widget, onChange) {
     });
 }
 
+function setupNote(node) {
+    ensureStyles();
+    applyNodeSkin(node);
+
+    const textW = node.widgets ? node.widgets.find((w) => w.name === WIDGET_NAME) : null;
+    if (!textW) return;
+
+    const view = document.createElement("div");
+    view.className = "zeon-note";
+    const w = node.addDOMWidget("zeon_note_view", "note", view, {
+        serialize: false,
+        getMinHeight: () => 80, // FIX 1: a real height in the Vue renderer
+    });
+    w.serialize = false;
+
+    function update() {
+        const src = String(textW.value || "");
+        view.innerHTML = src.trim()
+            ? renderMarkdown(src)
+            : '<div class="zeon-note-empty">Empty note — hit ✏ Edit</div>';
+    }
+    node._zeonNoteUpdate = update; // FIX 2: onConfigure re-renders through this
+
+    let editing = false;
+    makeToolbar(node, [
+        {
+            label: "✏ Edit",
+            title: "Show the raw markdown. The render stays live below while you type.",
+            onClick(btn) {
+                editing = !editing;
+                toggleWidget(textW, editing);
+                btn.textContent = editing ? "👁 Done" : "✏ Edit";
+                try { node.setSize([node.size[0], node.computeSize()[1]]); } catch (_e) {}
+                app.canvas && app.canvas.setDirty && app.canvas.setDirty(true, true);
+            },
+        },
+    ]);
+
+    interceptWidgetValue(textW, () => update());
+    update(); // render immediately, not only after the timeout
+
+    // start in clean view mode; hide the raw textarea only after the
+    // save/restore window has fully settled (values restore positionally)
+    setTimeout(() => {
+        try {
+            toggleWidget(textW, false);
+            try { node.setSize([node.size[0], node.computeSize()[1]]); } catch (_e) {}
+            update();
+        } catch (err) {
+            console.error("[ZeonmkII Note] initial hide failed:", err);
+        }
+    }, 100);
+}
+
 app.registerExtension({
     name: "ComfyUI-ZeonmkII-Nodes.Note",
 
+    // FIX 2: workflow reload restores widget values AFTER nodeCreated (and
+    // possibly without passing through our value interceptor), so the view
+    // could keep its stale render. Re-render once configure has settled —
+    // the same pattern Pixaroma's Note uses for the same reason.
+    beforeRegisterNodeDef(nodeType, nodeData) {
+        if (nodeData.name !== NODE_CLASS) return;
+        const origConfigure = nodeType.prototype.onConfigure;
+        nodeType.prototype.onConfigure = function () {
+            const r = origConfigure ? origConfigure.apply(this, arguments) : undefined;
+            try { if (typeof this._zeonNoteUpdate === "function") this._zeonNoteUpdate(); } catch (_e) {}
+            return r;
+        };
+    },
+
     nodeCreated(node) {
         if (node.comfyClass !== NODE_CLASS) return;
-        ensureStyles();
-        applyNodeSkin(node);
-
-        const textW = node.widgets ? node.widgets.find((w) => w.name === WIDGET_NAME) : null;
-        if (!textW) return;
-
-        const view = document.createElement("div");
-        view.className = "zeon-note";
-        const w = node.addDOMWidget("zeon_note_view", "note", view, {});
-        w.serialize = false;
-
-        function update() {
-            const src = String(textW.value || "");
-            view.innerHTML = src.trim()
-                ? renderMarkdown(src)
-                : '<div class="zeon-note-empty">Empty note — hit ✏ Edit</div>';
+        try { // FIX 3: fail visibly, never half-applied
+            setupNote(node);
+        } catch (err) {
+            console.error("[ZeonmkII Note] setup error:", err);
         }
-
-        let editing = false;
-        makeToolbar(node, [
-            {
-                label: "✏ Edit",
-                title: "Show the raw markdown. The render stays live below while you type.",
-                onClick(btn) {
-                    editing = !editing;
-                    toggleWidget(textW, editing);
-                    btn.textContent = editing ? "👁 Done" : "✏ Edit";
-                    node.setSize([node.size[0], node.computeSize()[1]]);
-                    app.canvas && app.canvas.setDirty && app.canvas.setDirty(true, true);
-                },
-            },
-        ]);
-
-        interceptWidgetValue(textW, () => update());
-
-        // start in clean view mode; hide the raw textarea only after the
-        // save/restore window has fully settled (values restore positionally)
-        setTimeout(() => {
-            toggleWidget(textW, false);
-            node.setSize([node.size[0], node.computeSize()[1]]);
-            update();
-        }, 100);
     },
 });

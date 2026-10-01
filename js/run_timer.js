@@ -3,12 +3,17 @@
  *
  * Frontend-only stopwatch (the Python side is a noop that ComfyUI skips on
  * Run). Listens to ComfyUI's run events: execution_start resets to zero and
- * ticks live, execution_success freezes green, execution_error freezes red.
- * The last finished total is stored on node.properties so it survives tab
- * switches and reloads.
+ * ticks live, execution_success freezes green, execution_error /
+ * execution_interrupted freeze red. The last finished total is stored on
+ * node.properties so it survives tab switches and reloads.
  *
- * Deliberately simple vs. Pixaroma's run timer: no chime (no sound assets),
- * no font/scale machinery, no history panel — just a clean skinned clock.
+ * v0.9.0 FIX ("it's not running" on MAGI): the first release created the
+ * clock/status elements but never attached them to the node, so the paint
+ * loop read undefined.textContent and crashed on its very first tick — the
+ * display froze at 00:00.0 forever. They now live on _zeonTimerHandles,
+ * every per-node paint runs inside its own try (one dead node can't kill
+ * the rest — Pixaroma's rule), and the widget declares getMinHeight so the
+ * Vue renderer gives it a real height.
  */
 import { app } from "/scripts/app.js";
 import { api } from "/scripts/api.js";
@@ -18,7 +23,7 @@ const NODE_CLASS = "ZeonmkII Run Timer";
 const PROP_LAST_MS = "zeonTimerLastMs";
 const TICK_MS = 100;
 
-const liveNodes = new Set(); // node handles; detached entries are harmless
+const liveNodes = new Set();
 const state = { running: false, startMs: 0, frozen: 0, status: "idle" };
 let ticker = null;
 
@@ -36,12 +41,18 @@ const STATUS_TEXT = {
     error: "error — stopped",
 };
 
-function paintAll() {
+function paintNode(node) {
+    const h = node._zeonTimerHandles;
+    if (!h || !h.clock) return;
     const t = state.running ? performance.now() - state.startMs : state.frozen;
-    for (const h of liveNodes) {
-        h.clock.textContent = fmt(t);
-        h.clock.className = "zeon-clock" + (state.running || state.status !== "idle" ? " status-" + state.status : "");
-        h.status.textContent = STATUS_TEXT[state.status] || "";
+    h.clock.textContent = fmt(t);
+    h.clock.className = "zeon-clock" + (state.status !== "idle" ? " status-" + state.status : "");
+    h.status.textContent = STATUS_TEXT[state.status] || "";
+}
+
+function paintAll() {
+    for (const node of liveNodes) {
+        try { paintNode(node); } catch (_e) { /* never let one node kill the loop */ }
     }
 }
 
@@ -57,7 +68,7 @@ function finish(error) {
     state.status = error ? "error" : "done";
     ensureTicker(false);
     for (const node of liveNodes) {
-        if (node.graph) node.properties[PROP_LAST_MS] = state.frozen; // persist only live graph nodes
+        try { if (node.graph) node.properties[PROP_LAST_MS] = state.frozen; } catch (_e) {}
     }
     paintAll();
 }
@@ -67,30 +78,46 @@ app.registerExtension({
 
     nodeCreated(node) {
         if (node.comfyClass !== NODE_CLASS) return;
-        ensureStyles();
-        applyNodeSkin(node);
+        try {
+            ensureStyles();
+            applyNodeSkin(node);
 
-        const clock = document.createElement("div");
-        clock.className = "zeon-clock";
-        clock.textContent = "00:00.0";
-        const status = document.createElement("div");
-        status.className = "zeon-clock-status";
-        status.textContent = STATUS_TEXT.idle;
+            const clock = document.createElement("div");
+            clock.className = "zeon-clock";
+            clock.textContent = "00:00.0";
+            const status = document.createElement("div");
+            status.className = "zeon-clock-status";
+            status.textContent = STATUS_TEXT.idle;
 
-        const w = node.addDOMWidget("zeon_timer", "timer", clock, {});
-        w.serialize = false;
-        w.element.appendChild(status);
+            const w = node.addDOMWidget("zeon_timer", "timer", clock, {
+                serialize: false,
+                getMinHeight: () => 62,
+            });
+            w.serialize = false;
+            w.element.appendChild(status);
 
-        // restore last finished total from the saved workflow
-        const last = node.properties ? node.properties[PROP_LAST_MS] : null;
-        if (typeof last === "number" && last > 0 && !state.running) {
-            state.frozen = last;
-            state.status = "done";
-            paintAll();
+            // THE FIX: the paint loop reads these off the node.
+            node._zeonTimerHandles = { clock, status };
+            liveNodes.add(node);
+
+            // drop our handle when the node leaves the canvas (delete,
+            // workflow switch) so the loop never paints a dead node
+            const origOnRemoved = node.onRemoved;
+            node.onRemoved = function () {
+                liveNodes.delete(node);
+                return origOnRemoved ? origOnRemoved.apply(this, arguments) : undefined;
+            };
+
+            // restore last finished total from the saved workflow
+            const last = node.properties ? node.properties[PROP_LAST_MS] : null;
+            if (typeof last === "number" && last > 0 && !state.running) {
+                state.frozen = last;
+                state.status = "done";
+            }
+            paintNode(node);
+        } catch (err) {
+            console.error("[ZeonmkII Run Timer] setup error:", err);
         }
-
-        liveNodes.add(node);
-        if (state.running || state.status !== "idle") paintAll();
     },
 });
 
@@ -103,3 +130,4 @@ api.addEventListener("execution_start", () => {
 });
 api.addEventListener("execution_success", () => finish(false));
 api.addEventListener("execution_error", () => finish(true));
+api.addEventListener("execution_interrupted", () => finish(true));

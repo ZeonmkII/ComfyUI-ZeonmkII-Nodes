@@ -68,6 +68,20 @@ export function ensureStyles() {
 .zeon-note-table th { background: ${ZEON.PANEL}; color: #ffffff; text-align: left; padding: 2px 8px; border: 1px solid #3a3f46; font-size: 11px; }
 .zeon-note-table td { padding: 2px 8px; border: 1px solid #3a3f46; }
 .zeon-note-empty { color: #9aa0a6; font-style: italic; }
+.zeon-rowlabel { font-size: 9px; color: #9aa0a6; letter-spacing: 1.2px; padding: 3px 0 0 2px; }
+.zeon-chiprow { display: flex; flex-wrap: wrap; gap: 4px; padding: 2px 0 4px 0; }
+.zeon-chip {
+  padding: 3px 8px; border: 1px solid #3a3f46; border-radius: 10px;
+  background: ${ZEON.PANEL}; color: ${ZEON.TEXT}; font-size: 11px; cursor: pointer;
+  user-select: none; white-space: nowrap;
+}
+.zeon-chip:hover { border-color: ${ZEON.ACCENT_DIM}; color: #fff; }
+.zeon-chip.active { background: ${ZEON.ACCENT}; border-color: ${ZEON.ACCENT}; color: #fff; }
+.zeon-preview {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 10px; color: #9aa0a6; padding: 2px 8px 6px 8px;
+  overflow-wrap: anywhere;
+}
 `;
   document.head.appendChild(style);
 }
@@ -93,7 +107,10 @@ export function makeToolbar(node, buttons) {
     });
     root.appendChild(btn);
   }
-  const w = node.addDOMWidget("zeon_toolbar_" + Math.random().toString(36).slice(2, 7), "toolbar", root, {});
+  const w = node.addDOMWidget("zeon_toolbar_" + Math.random().toString(36).slice(2, 7), "toolbar", root, {
+    serialize: false,
+    getMinHeight: () => 34,
+  });
   w.serialize = false;
   return root;
 }
@@ -111,7 +128,10 @@ export function makeBand(node) {
   const text = document.createElement("span");
   el.appendChild(hue);
   el.appendChild(text);
-  const w = node.addDOMWidget("zeon_band_" + Math.random().toString(36).slice(2, 7), "band", el, {});
+  const w = node.addDOMWidget("zeon_band_" + Math.random().toString(36).slice(2, 7), "band", el, {
+    serialize: false,
+    getMinHeight: () => 26,
+  });
   w.serialize = false;
   return { el, hue, text };
 }
