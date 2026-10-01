@@ -52,6 +52,22 @@ export function ensureStyles() {
   font-size: 10px; color: #9aa0a6; text-align: center;
   padding-bottom: 6px; letter-spacing: 0.5px;
 }
+.zeon-note { padding: 2px 10px 8px 10px; font-size: 12px; line-height: 1.5; color: ${ZEON.TEXT}; overflow-wrap: anywhere; }
+.zeon-note h1, .zeon-note h2, .zeon-note h3 { color: #ffffff; margin: 6px 0 3px 0; line-height: 1.25; }
+.zeon-note h1 { font-size: 15px; }
+.zeon-note h2 { font-size: 13.5px; border-bottom: 1px solid ${ZEON.ACCENT_DIM}; padding-bottom: 2px; }
+.zeon-note h3 { font-size: 12.5px; }
+.zeon-note p { margin: 3px 0; }
+.zeon-note ul, .zeon-note ol { margin: 3px 0 3px 18px; padding: 0; }
+.zeon-note li { margin: 1px 0; }
+.zeon-note code { background: ${ZEON.PANEL}; border-radius: 4px; padding: 0 4px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11px; }
+.zeon-note a { color: #4fb8d8; text-decoration: none; }
+.zeon-note a:hover { text-decoration: underline; }
+.zeon-note hr { border: none; border-top: 1px dashed ${ZEON.ACCENT_DIM}; margin: 6px 0; }
+.zeon-note-table { border-collapse: collapse; margin: 5px 0; }
+.zeon-note-table th { background: ${ZEON.PANEL}; color: #ffffff; text-align: left; padding: 2px 8px; border: 1px solid #3a3f46; font-size: 11px; }
+.zeon-note-table td { padding: 2px 8px; border: 1px solid #3a3f46; }
+.zeon-note-empty { color: #9aa0a6; font-style: italic; }
 `;
   document.head.appendChild(style);
 }
