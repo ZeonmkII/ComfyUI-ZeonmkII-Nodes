@@ -52,9 +52,6 @@ function updateVisibility(node, band) {
         for (const base of SLOT_FIELD_BASES) {
             toggleWidget(findWidget(node, base + i), visible);
         }
-        // per-slot identity: tint the trigger field's label via widget colors
-        const trig = findWidget(node, "trigger_" + i);
-        if (trig) trig.label = visible ? `✦ char ${i}` : `✦ char ${i}`;
     }
 
     // selection band
