@@ -223,7 +223,11 @@ app.registerExtension({
                     s = input.selectionStart;
                     e = input.selectionEnd;
                 }
-                patW.value = cur.slice(0, s) + tok + cur.slice(e);
+                // smart separator (Boss 22:49): "_%seed" chains readably —
+                // only add the "_" when the string does not already end in one
+                const before = cur.slice(0, s);
+                const ins = (before.length > 0 && !/[_/]$/.test(before) ? "_" : "") + tok;
+                patW.value = before + ins + cur.slice(e);
                 try { patW.callback?.(); } catch (err) { /* callback optional */ }
                 try { input?.focus?.(); } catch (err) { /* fine */ }
                 update();

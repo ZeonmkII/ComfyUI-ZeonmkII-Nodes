@@ -148,8 +148,8 @@ class ImageSaverMetadata:
         return {
             "optional": {
                 "modelname":             ("STRING",  {"default": '', "multiline": False,                           "tooltip": "model name (can be multiple, separated by commas)"}),
-                "positive":              ("STRING",  {"default": 'unknown', "multiline": True,                     "tooltip": "positive prompt"}),
-                "negative":              ("STRING",  {"default": 'unknown', "multiline": True,                     "tooltip": "negative prompt"}),
+                "positive":              ("STRING",  {"default": '', "multiline": True, "placeholder": "positive prompt",            "tooltip": "positive prompt"}),
+                "negative":              ("STRING",  {"default": '', "multiline": True, "placeholder": "negative prompt",            "tooltip": "negative prompt"}),
                 "width":                 ("INT",     {"default": 512, "min": 0, "max": MAX_RESOLUTION, "step": 8,  "tooltip": "image width"}),
                 "height":                ("INT",     {"default": 512, "min": 0, "max": MAX_RESOLUTION, "step": 8,  "tooltip": "image height"}),
                 "seed_value":            ("INT",     {"default": 0, "min": 0, "max": 0xffffffffffffffff,           "tooltip": "seed"}),
@@ -338,9 +338,7 @@ class ImageSaverSimple:
 
         subfolder = os.path.normpath(path)
 
-        result: dict[str, Any] = {
-            "result": (metadata.final_hashes, metadata.a111_params),
-        }
+        result: dict[str, Any] = {}
 
         # show_preview input cut (Boss 22:16) - the UI preview always shows
         result["ui"] = {"images": [{"filename": filename, "subfolder": subfolder if subfolder != '.' else '', "type": 'output'} for filename in filenames]}
@@ -367,8 +365,8 @@ class ImageSaver:
                 "2nd_scheduler_name":    ("STRING",  {"default": 'normal', "multiline": False,                     "tooltip": "2nd KSampler cleanup pass - scheduler name"}),
                 "2nd_steps":             ("INT",     {"default": 2, "min": 0, "max": 10000,                        "tooltip": "2nd KSampler cleanup pass - steps (0 = skip the pass in the metadata)"}),
                 "2nd_cfg":               ("FLOAT",   {"default": 1.0, "min": 0.0, "max": 100.0,                    "tooltip": "2nd KSampler cleanup pass - CFG (0 = skip the pass in the metadata)"}),
-                "positive":              ("STRING",  {"default": 'unknown', "multiline": True,                     "tooltip": "positive prompt"}),
-                "negative":              ("STRING",  {"default": 'unknown', "multiline": True,                     "tooltip": "negative prompt"}),
+                "positive":              ("STRING",  {"default": '', "multiline": True, "placeholder": "positive prompt",            "tooltip": "positive prompt"}),
+                "negative":              ("STRING",  {"default": '', "multiline": True, "placeholder": "negative prompt",            "tooltip": "negative prompt"}),
                 "seed_value":            ("INT",     {"default": 0, "min": 0, "max": 0xffffffffffffffff,           "tooltip": "seed"}),
                 "width":                 ("INT",     {"default": 512, "min": 0, "max": MAX_RESOLUTION, "step": 8,  "tooltip": "image width"}),
                 "height":                ("INT",     {"default": 512, "min": 0, "max": MAX_RESOLUTION, "step": 8,  "tooltip": "image height"}),
@@ -387,9 +385,6 @@ class ImageSaver:
             },
         }
 
-    RETURN_TYPES = ("STRING","STRING")
-    RETURN_NAMES = ("hashes","a1111_params")
-    OUTPUT_TOOLTIPS = ("Comma-separated list of the hashes to chain with other Image Saver additional_hashes","Written parameters to the image metadata")
     FUNCTION = "save_files"
 
     OUTPUT_NODE = True
@@ -424,8 +419,8 @@ class ImageSaver:
         sch2 = g("2nd_scheduler_name", "normal")
         st2 = g("2nd_steps", 2)
         c2 = g("2nd_cfg", 1.0)
-        positive = g("positive", "unknown")
-        negative = g("negative", "unknown")
+        positive = g("positive", "")
+        negative = g("negative", "")
         seed_value = g("seed_value", 0)
         width = g("width", 512)
         height = g("height", 512)
