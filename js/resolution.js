@@ -1,34 +1,50 @@
 /**
- * ComfyUI-ZeonmkII-Nodes — Resolution UI (v0.11.0)
+ * ComfyUI-ZeonmkII-Nodes — Resolution UI (v0.11.5)
  *
- * Skin: crimson node + chip-button rows for the ACTIVE orientation family
- * (Landscape / Portrait, Square shared), plus a live pixel band colored by
- * family. The inactive family's dropdown hides with the real zero-footprint
- * mechanic, so the node shrinks honestly. All values live in resolution.py.
+ * Boss's spec: Pixaroma-style LINES OF BUTTONS, ours — but HORIZONTAL
+ * rows, our crimson chips, and NOTHING else: no dropdowns anywhere.
+ *   line 1  ORIENTATION   [Landscape] [Portrait]
+ *   line 2  RATIO         family row, swaps with orientation
+ *   line 3  BASE          [1024] [1536] [2048]
+ *   band    live pixels + megapixels, hue by family
+ *
+ * Mechanics: the four combo widgets remain the serialized truth (Python
+ * side untouched) but are collapsed to zero footprint with the standard
+ * computeSize [0,-4] hide. Unlike the LoRA loader's hide, serialization is
+ * deliberately NOT touched — every selection survives reloads. The DOM
+ * panel uses a CONSTANT getMinHeight (DOM-widget law: never measure) and a
+ * one-time spawn size, the proven timer pattern.
  */
 import { app } from "/scripts/app.js";
-import { ensureStyles, applyNodeSkin, makeBand } from "./zeonmkii_skin.js";
+import { ensureStyles, applyNodeSkin } from "./zeonmkii_skin.js";
 
 const NODE_CLASS = "ZeonmkII Resolution";
 
 const FAMILY_HUES = { Landscape: "#4fb8d8", Portrait: "#e06a9a" };
 
-function setWidgetHidden(widget, hidden) {
-    if (!widget) return;
-    if (hidden) {
-        if (!widget._zeonOrig) {
-            widget._zeonOrig = { computeSize: widget.computeSize, serializeValue: widget.serializeValue };
-        }
-        widget.computeSize = () => [0, -4];
-        widget.serializeValue = () => null;
-        widget._zeonHidden = true;
-    } else if (widget._zeonHidden) {
-        if (widget._zeonOrig.computeSize) widget.computeSize = widget._zeonOrig.computeSize;
-        else delete widget.computeSize;
-        if (widget._zeonOrig.serializeValue) widget.serializeValue = widget._zeonOrig.serializeValue;
-        else delete widget.serializeValue;
-        widget._zeonHidden = false;
-    }
+// mirror of nodes/resolution.py (band display only)
+const PRESETS = {
+    "1:1 Square": { 1024: [1024, 1024], 1536: [1536, 1536], 2048: [2048, 2048] },
+    "4:3 Landscape": { 1024: [1184, 896], 1536: [1776, 1344], 2048: [2368, 1792] },
+    "3:2 Landscape": { 1024: [1248, 832], 1536: [1872, 1248], 2048: [2496, 1664] },
+    "16:9 Widescreen": { 1024: [1376, 768], 1536: [2064, 1152], 2048: [2752, 1536] },
+    "2.35:1 Cinematic": { 1024: [1568, 672], 1536: [2352, 1008], 2048: [3136, 1344] },
+    "4:5 Portrait": { 1024: [928, 1152], 1536: [1392, 1728], 2048: [1856, 2304] },
+    "3:4 Portrait": { 1024: [896, 1184], 1536: [1344, 1776], 2048: [1792, 2368] },
+    "2:3 Portrait": { 1024: [832, 1248], 1536: [1248, 1872], 2048: [1664, 2496] },
+    "9:16 Portrait": { 1024: [768, 1376], 1536: [1152, 2064], 2048: [1536, 2752] },
+};
+
+/** zero-footprint hide; serialization untouched on purpose */
+function collapse(w) {
+    if (!w || w._zeonCollapsed) return;
+    w._zeonOrigCompute = w.computeSize;
+    w.computeSize = () => [0, -4];
+    w._zeonCollapsed = true;
+}
+
+function shortLabel(opt) {
+    return String(opt).split(" ")[0]; // "16:9", "2.35:1", "1024", …
 }
 
 app.registerExtension({
@@ -45,115 +61,110 @@ app.registerExtension({
             const portW = node.widgets.find((x) => x.name === "portrait_ratio");
             const baseW = node.widgets.find((x) => x.name === "base_resolution");
             if (!orientW || !landW || !portW || !baseW) return;
+            collapse(orientW); collapse(landW); collapse(portW); collapse(baseW);
 
-            const band = makeBand(node);
+            // ── panel: three button lines + band ────────────────────────
+            const panel = document.createElement("div");
+            panel.style.cssText = "padding:4px 8px 2px 8px;";
 
-            // chip rows: one per family
-            const root = document.createElement("div");
-            root.style.cssText = "padding:3px 8px 2px 8px;";
-            const rows = {};
-            const chipMap = {};
-            for (const fam of ["Landscape", "Portrait"]) {
-                const label = document.createElement("div");
-                label.className = "zeon-rowlabel";
-                label.textContent = fam.toUpperCase() + " RATIOS";
-                const row = document.createElement("div");
-                row.className = "zeon-chiprow";
-                root.append(label, row);
-                rows[fam] = { label, row, chips: [] };
+            const mkLabel = (txt) => {
+                const el = document.createElement("div");
+                el.className = "zeon-rowlabel";
+                el.textContent = txt;
+                panel.appendChild(el);
+                return el;
+            };
+            const mkRow = () => {
+                const el = document.createElement("div");
+                el.className = "zeon-chiprow";
+                panel.appendChild(el);
+                return el;
+            };
+            const mkChip = (row, label, title, onClick) => {
+                const b = document.createElement("button");
+                b.type = "button";
+                b.className = "zeon-chip";
+                b.textContent = label;
+                b.title = title;
+                b.addEventListener("click", (e) => { e.stopPropagation(); onClick(); sync(); });
+                row.appendChild(b);
+                return b;
+            };
+
+            // line 1 — orientation
+            mkLabel("ORIENTATION");
+            const orientRow = mkRow();
+            const orientChips = {};
+            for (const opt of orientW.options.values) {
+                orientChips[opt] = mkChip(orientRow, opt, opt, () => { orientW.value = opt; });
             }
-            const comboFor = (fam) => (fam === "Landscape" ? landW : portW);
+
+            // line 2 — ratio, one line per family (display-swapped)
+            const ratioRows = {}, ratioChips = {};
             for (const fam of ["Landscape", "Portrait"]) {
-                const w = comboFor(fam);
-                for (const opt of w.options.values) {
-                    const chip = document.createElement("button");
-                    chip.type = "button";
-                    chip.className = "zeon-chip";
-                    chip.textContent = opt.split(" ")[0]; // "16:9", "2.35:1", …
-                    chip.title = opt;
-                    chip.addEventListener("click", (e) => {
-                        e.stopPropagation();
-                        orientW.value = fam;
-                        w.value = opt;
-                        sync();
-                    });
-                    rows[fam].row.appendChild(chip);
-                    rows[fam].chips.push({ chip, opt });
-                    chipMap[fam + "|" + opt] = chip;
+                const famW = fam === "Landscape" ? landW : portW;
+                const label = mkLabel(fam.toUpperCase() + " RATIO");
+                const row = mkRow();
+                ratioRows[fam] = { label, row };
+                ratioChips[fam] = {};
+                for (const opt of famW.options.values) {
+                    ratioChips[fam][opt] = mkChip(row, shortLabel(opt), opt, () => { famW.value = opt; });
                 }
             }
 
-            const panelW = node.addDOMWidget("zeon_res_chips", "chips", root, {
-                serialize: false,
-                getMinHeight: () => 96,
-            });
-            panelW.serialize = false;
-            const idx = node.widgets.indexOf(orientW);
-            if (idx >= 0) {
-                node.widgets.splice(node.widgets.indexOf(panelW), 1);
-                node.widgets.splice(idx, 0, panelW);
+            // line 3 — base resolution
+            mkLabel("BASE RESOLUTION");
+            const baseRow = mkRow();
+            const baseChips = {};
+            for (const opt of baseW.options.values) {
+                baseChips[opt] = mkChip(baseRow, opt, "Base " + opt, () => { baseW.value = opt; });
             }
 
-            function dimsFor(fam, ratio) {
-                // mirror of the python table, for the live band only
-                const T = {
-                    "1:1 Square": { 1024: [1024, 1024], 1536: [1536, 1536], 2048: [2048, 2048] },
-                    "4:3 Landscape": { 1024: [1184, 896], 1536: [1776, 1344], 2048: [2368, 1792] },
-                    "3:2 Landscape": { 1024: [1248, 832], 1536: [1872, 1248], 2048: [2496, 1664] },
-                    "16:9 Widescreen": { 1024: [1376, 768], 1536: [2064, 1152], 2048: [2752, 1536] },
-                    "2.35:1 Cinematic": { 1024: [1568, 672], 1536: [2352, 1008], 2048: [3136, 1344] },
-                    "4:5 Portrait": { 1024: [928, 1152], 1536: [1392, 1728], 2048: [1856, 2304] },
-                    "3:4 Portrait": { 1024: [896, 1184], 1536: [1344, 1776], 2048: [1792, 2368] },
-                    "2:3 Portrait": { 1024: [832, 1248], 1536: [1248, 1872], 2048: [1664, 2496] },
-                    "9:16 Portrait": { 1024: [768, 1376], 1536: [1152, 2064], 2048: [1536, 2752] },
-                };
-                const b = Number(baseW.value) || 1024;
-                return (T[ratio] && T[ratio][b]) || [0, 0];
-            }
+            // band — live pixels
+            const band = document.createElement("div");
+            band.className = "zeon-band";
+            const hue = document.createElement("span");
+            hue.className = "zeon-band-hue";
+            const bandText = document.createElement("span");
+            band.append(hue, bandText);
+            panel.appendChild(band);
+
+            const w = node.addDOMWidget("zeon_res_panel", "panel", panel, {
+                serialize: false,
+                // CONSTANT (DOM-widget law — never measure)
+                getMinHeight: () => 168,
+            });
+            w.serialize = false;
+
+            // one-time spawn size, proven timer pattern (constants only)
+            try { node.setSize([330, 208]); } catch (_e) {}
 
             function sync() {
                 const fam = orientW.value === "Portrait" ? "Portrait" : "Landscape";
-                // hide the inactive family's combo + row with real mechanics
-                setWidgetHidden(landW, fam !== "Landscape");
-                setWidgetHidden(portW, fam !== "Portrait");
-                rows.Landscape.label.style.display = fam === "Landscape" ? "" : "none";
-                rows.Landscape.row.style.display = fam === "Landscape" ? "" : "none";
-                rows.Portrait.label.style.display = fam === "Portrait" ? "" : "none";
-                rows.Portrait.row.style.display = fam === "Portrait" ? "" : "none";
-
-                const activeW = comboFor(fam);
-                band.hue.style.background = FAMILY_HUES[fam];
-                for (const fam2 of ["Landscape", "Portrait"]) {
-                    const cur = comboFor(fam2).value;
-                    for (const { chip, opt } of rows[fam2].chips) {
-                        chip.classList.toggle("active", fam2 === fam && opt === cur);
+                for (const f of ["Landscape", "Portrait"]) {
+                    ratioRows[f].label.style.display = f === fam ? "" : "none";
+                    ratioRows[f].row.style.display = f === fam ? "" : "none";
+                }
+                const ratioW = fam === "Landscape" ? landW : portW;
+                for (const opt of Object.keys(orientChips)) {
+                    orientChips[opt].classList.toggle("active", opt === fam);
+                }
+                for (const f of ["Landscape", "Portrait"]) {
+                    const famW = f === "Landscape" ? landW : portW;
+                    for (const opt of Object.keys(ratioChips[f])) {
+                        ratioChips[f][opt].classList.toggle("active", f === fam && opt === famW.value);
                     }
                 }
-                const [w2, h2] = dimsFor(fam, String(activeW.value));
-                const mp = w2 && h2 ? ((w2 * h2) / 1e6).toFixed(2) : "?";
-                band.text.textContent = `${w2} × ${h2} · ${mp} MP · ${activeW.value} @ base ${baseW.value}`;
-                try {
-                    const sz = node.computeSize();
-                    if (node.setSize) node.setSize([Math.max(node.size[0], sz[0]), sz[1]]);
-                    node.setDirtyCanvas && node.setDirtyCanvas(true, true);
-                } catch (_e) {}
+                for (const opt of Object.keys(baseChips)) {
+                    baseChips[opt].classList.toggle("active", opt === baseW.value);
+                }
+                const base = Number(baseW.value) || 1024;
+                const dims = (PRESETS[String(ratioW.value)] || {})[base] || [0, 0];
+                hue.style.background = FAMILY_HUES[fam];
+                bandText.textContent = dims[0]
+                    ? `${dims[0]}×${dims[1]} · ${((dims[0] * dims[1]) / 1e6).toFixed(2)} MP`
+                    : "—";
             }
-            node._zeonResSync = sync;
-
-            const wrap = (w) => {
-                let v = w.value;
-                const d = Object.getOwnPropertyDescriptor(w, "value") ||
-                    Object.getOwnPropertyDescriptor(Object.getPrototypeOf(w), "value");
-                Object.defineProperty(w, "value", {
-                    configurable: true,
-                    get() { return d && d.get ? d.get.call(w) : v; },
-                    set(nv) {
-                        if (d && d.set) d.set.call(w, nv); else v = nv;
-                        sync();
-                    },
-                });
-            };
-            wrap(orientW); wrap(landW); wrap(portW); wrap(baseW);
 
             const origConfigure = node.onConfigure;
             node.onConfigure = function () {
