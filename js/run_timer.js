@@ -91,7 +91,7 @@ app.registerExtension({
 
             const w = node.addDOMWidget("zeon_timer", "timer", clock, {
                 serialize: false,
-                getMinHeight: () => 62,
+                getMinHeight: () => 118,
             });
             w.serialize = false;
             w.element.appendChild(status);

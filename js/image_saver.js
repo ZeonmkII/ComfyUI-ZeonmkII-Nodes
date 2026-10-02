@@ -1,59 +1,38 @@
 /**
- * ComfyUI-ZeonmkII-Nodes — Save Image UI
+ * ComfyUI-ZeonmkII-Nodes — Save Image UI (v0.11.0)
  *
- * v0.9.0: the rich naming panel. The native widgets carry every option
- * (folder, format, quality, embed toggles — the Image-Saver option set);
- * this UI adds what a plain text field can't: one-click TOKEN BUTTONS that
- * build the filename pattern, and a live preview of the resolved name.
- * Token semantics mirror nodes/image_saver.py exactly.
+ * Pixaroma's layout language with our skin, minus the preview section:
+ * ONE "SAVE" panel above the naming widgets — token chip buttons that
+ * insert into the filename pattern, ✕ Clear, ↺ Reset, and a live
+ * "will save as" line. The long Image-Saver option list lives as the
+ * node's widgets + wire-in slots (Python side); this panel is the fast
+ * face for naming. All widgets stay the serialized truth.
  */
 import { app } from "/scripts/app.js";
-import { ensureStyles, applyNodeSkin } from "./zeonmkii_skin.js";
+import { ensureStyles, applyNodeSkin, makeBand } from "./zeonmkii_skin.js";
 
 const NODE_CLASS = "ZeonmkII Save Image";
 
-const TOKEN_GROUPS = [
-    ["naming", [
-        ["📅 date", "%date%"], ["⏱ time", "%time%"],
-        ["🔢 counter", "%counter%"], ["🎲 seed", "%seed%"],
-    ]],
-    ["info", [
-        ["steps", "%steps%"], ["cfg", "%cfg%"], ["sampler", "%sampler%"],
-        ["scheduler", "%scheduler%"], ["model", "%model%"],
-        ["📐 WxH", "%width%x%height%"],
-    ]],
-];
+const TOKENS = ["%date", "%time", "%seed", "%counter", "%model", "%basemodelname",
+    "%width", "%height", "%sampler_name", "%steps", "%cfg", "%scheduler_name",
+    "%denoise", "%clip_skip", "%custom", "%label"];
 
-const SAMPLE = {
-    "%date%": "2026-10-01", "%time%": "143025", "%seed%": "123456789",
-    "%steps%": "28", "%cfg%": "3.5", "%sampler%": "euler", "%scheduler%": "beta",
-    "%model%": "krea2", "%width%": "1536", "%height%": "640",
-};
-
-// mirror of expand_tokens() in nodes/image_saver.py
-function previewName(pattern, ext) {
-    let s = String(pattern || "Zeon_%date%_%counter%").replace("%counter%", "");
-    for (const [k, v] of Object.entries(SAMPLE)) s = s.split(k).join(v);
-    s = s.replace(/[\s_]+$/, "").trim();
-    if (!s) s = "Zeon";
-    return s + "_00001_." + (ext || "png");
+function nowStr(fmt) {
+    const d = new Date();
+    const p = (n) => String(n).padStart(2, "0");
+    if (fmt) {
+        // minimal strftime mirror for the common %time_format default
+        return fmt.replace(/%Y/g, d.getFullYear()).replace(/%m/g, p(d.getMonth() + 1))
+            .replace(/%d/g, p(d.getDate())).replace(/%H/g, p(d.getHours()))
+            .replace(/%M/g, p(d.getMinutes())).replace(/%S/g, p(d.getSeconds()));
+    }
+    return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
 }
 
-function interceptWidgetValue(widget, onChange) {
-    let widgetValue = widget.value;
-    const desc =
-        Object.getOwnPropertyDescriptor(widget, "value") ||
-        Object.getOwnPropertyDescriptor(Object.getPrototypeOf(widget), "value");
-    Object.defineProperty(widget, "value", {
-        configurable: true,
-        enumerable: true,
-        get() { return desc && desc.get ? desc.get.call(widget) : widgetValue; },
-        set(newVal) {
-            if (desc && desc.set) desc.set.call(widget, newVal);
-            else widgetValue = newVal;
-            onChange(newVal);
-        },
-    });
+function baseName(v) {
+    const s = String(v ?? "");
+    const b = s.split("/").pop();
+    return b.replace(/\.(safetensors|ckpt|pt|bin|gguf)$/i, "");
 }
 
 app.registerExtension({
@@ -65,51 +44,98 @@ app.registerExtension({
             ensureStyles();
             applyNodeSkin(node);
 
-            const nameW = node.widgets ? node.widgets.find((w) => w.name === "filename") : null;
-            const extW = node.widgets ? node.widgets.find((w) => w.name === "extension") : null;
-            if (!nameW) return;
+            const filenameW = node.widgets.find((x) => x.name === "filename");
+            const pathW = node.widgets.find((x) => x.name === "path");
+            const extW = node.widgets.find((x) => x.name === "extension");
+            const timeFmtW = node.widgets.find((x) => x.name === "time_format");
+            if (!filenameW) return;
 
-            const root = document.createElement("div");
-            const preview = document.createElement("div");
-            preview.className = "zeon-preview";
+            const panel = document.createElement("div");
+            panel.style.cssText = "padding:4px 8px 2px 8px;";
 
-            for (const [label, tokens] of TOKEN_GROUPS) {
-                const rl = document.createElement("div");
-                rl.className = "zeon-rowlabel";
-                rl.textContent = label.toUpperCase() + " — click to add";
-                root.appendChild(rl);
-                const row = document.createElement("div");
-                row.className = "zeon-chiprow";
-                for (const [chipLabel, token] of tokens) {
-                    const c = document.createElement("button");
-                    c.type = "button";
-                    c.className = "zeon-chip";
-                    c.textContent = chipLabel;
-                    c.title = "Append " + token + " to the filename pattern";
-                    c.addEventListener("click", (e) => {
-                        e.stopPropagation();
-                        const cur = String(nameW.value || "");
-                        const sep = cur && !cur.endsWith("_") && !cur.endsWith("%") ? "_" : "";
-                        nameW.value = cur + sep + token;
-                        update();
-                    });
-                    row.appendChild(c);
-                }
-                root.appendChild(row);
-            }
-            root.appendChild(preview);
+            const label = document.createElement("div");
+            label.className = "zeon-rowlabel";
+            label.textContent = "SAVE — FILENAME BUILDER";
+            panel.appendChild(label);
 
-            const w = node.addDOMWidget("zeon_saver_tokens", "saver", root, {
+            const chiprow = document.createElement("div");
+            chiprow.className = "zeon-chiprow";
+            panel.appendChild(chiprow);
+
+            const prev = document.createElement("div");
+            prev.className = "zeon-preview";
+            panel.appendChild(prev);
+
+            const band = makeBand(node);
+
+            const w = node.addDOMWidget("zeon_save_panel", "panel", panel, {
                 serialize: false,
-                getMinHeight: () => 118,
+                getMinHeight: () => 84,
             });
             w.serialize = false;
+            const idx = node.widgets.indexOf(filenameW);
+            if (idx >= 0) {
+                node.widgets.splice(node.widgets.indexOf(w), 1);
+                node.widgets.splice(idx, 0, w);
+            }
+
+            function insertToken(tok) {
+                const cur = String(filenameW.value ?? "");
+                filenameW.value = cur.endsWith(tok) ? cur : (cur ? cur + tok : tok);
+            }
+
+            for (const tok of TOKENS) {
+                const chip = document.createElement("button");
+                chip.type = "button";
+                chip.className = "zeon-chip";
+                chip.textContent = tok.replace("%", "");
+                chip.title = "Insert " + tok + " into the filename pattern";
+                chip.addEventListener("click", (e) => { e.stopPropagation(); insertToken(tok); });
+                chiprow.appendChild(chip);
+            }
+            const clear = document.createElement("button");
+            clear.type = "button";
+            clear.className = "zeon-chip";
+            clear.textContent = "✕ Clear";
+            clear.title = "Empty the filename pattern";
+            clear.addEventListener("click", (e) => { e.stopPropagation(); filenameW.value = ""; update(); });
+            chiprow.appendChild(clear);
+            const reset = document.createElement("button");
+            reset.type = "button";
+            reset.className = "zeon-chip";
+            reset.textContent = "↺ Reset";
+            reset.title = "Restore the default filename pattern";
+            reset.addEventListener("click", (e) => {
+                e.stopPropagation();
+                filenameW.value = "%time_%basemodelname_%seed";
+                update();
+            });
+            chiprow.appendChild(reset);
 
             function update() {
-                preview.textContent = "→ " + previewName(nameW.value, extW ? extW.value : "png");
+                let s = String(filenameW.value ?? "");
+                const fmt = timeFmtW ? String(timeFmtW.value ?? "") : "";
+                s = s.replace(/%time_format<([^>]*)>/g, (_m, f) => nowStr(f));
+                s = s.replace(/%date/g, nowStr());
+                s = s.replace(/%time/g, nowStr(fmt || "%Y-%m-%d-%H%M%S").replace(/-/g, "").slice(0) );
+                s = s.replace(/%basemodelname/g, baseName("model.safetensors") === "model" ? "<model>" : "<model>");
+                for (const t of ["%seed", "%counter", "%width", "%height", "%sampler_name", "%steps",
+                    "%cfg", "%scheduler_name", "%denoise", "%clip_skip", "%custom", "%label", "%model"]) {
+                    s = s.split(t).join("<" + t.slice(1) + ">");
+                }
+                prev.textContent = "→ " + (s || "<empty>") + "." + String(extW ? extW.value : "png");
+                const folder = pathW && String(pathW.value || "").trim();
+                band.text.textContent = "output/" + (folder ? folder + "/" : "") + (String(filenameW.value).trim() ? "…pattern set" : "default name");
             }
-            interceptWidgetValue(nameW, update);
-            if (extW) interceptWidgetValue(extW, update);
+            node._zeonSaveSync = update;
+
+            const origConfigure = node.onConfigure;
+            node.onConfigure = function () {
+                const r = origConfigure ? origConfigure.apply(this, arguments) : undefined;
+                try { update(); } catch (_e) {}
+                return r;
+            };
+
             update();
         } catch (err) {
             console.error("[ZeonmkII Save Image] setup error:", err);

@@ -20,9 +20,18 @@ export const ZEON = {
 };
 
 const STYLE_ID = "zeonmkii-skin-styles";
+const FONT_ID = "zeonmkii-orbitron-font";
 
 export function ensureStyles() {
   if (document.getElementById(STYLE_ID)) return;
+  // CRT-grade digits want Orbitron; fall back to monospace offline
+  if (!document.getElementById(FONT_ID)) {
+    const link = document.createElement("link");
+    link.id = FONT_ID;
+    link.href = "https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap";
+    link.rel = "stylesheet";
+    document.head.appendChild(link);
+  }
   const style = document.createElement("style");
   style.id = STYLE_ID;
   style.textContent = `
@@ -41,16 +50,23 @@ export function ensureStyles() {
 }
 .zeon-band .zeon-band-hue { width:8px; height:8px; border-radius:50%; flex:0 0 auto; }
 .zeon-clock {
-  font-family: ui-monospace, Menlo, Consolas, monospace;
-  font-size: 24px; line-height: 1.2; text-align: center;
-  padding: 6px 10px 2px 10px; color: ${ZEON.TEXT};
+  font-family: 'Orbitron', ui-monospace, Menlo, Consolas, monospace;
+  font-size: 50px; font-weight: bold; line-height: 1.1; text-align: center;
+  padding: 14px 10px 2px 10px; color: ${ZEON.TEXT};
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+  text-shadow: 0 0 18px rgba(229, 72, 77, 0.35);
+  animation: zeon-glow 10s infinite ease-in-out;
+}
+@keyframes zeon-glow {
+  0%, 100% { text-shadow: 0 0 18px rgba(229, 72, 77, 0.35); }
+  50% { text-shadow: 0 0 28px rgba(229, 72, 77, 0.5); }
 }
 .zeon-clock.status-running { color: ${ZEON.ACCENT}; }
 .zeon-clock.status-done { color: #5fbf6e; }
 .zeon-clock.status-error { color: #e5484d; }
 .zeon-clock-status {
-  font-size: 10px; color: #9aa0a6; text-align: center;
-  padding-bottom: 6px; letter-spacing: 0.5px;
+  font-size: 11px; color: #9aa0a6; text-align: center;
+  padding-bottom: 8px; letter-spacing: 0.5px;
 }
 .zeon-note { padding: 2px 10px 8px 10px; font-size: 12px; line-height: 1.5; color: ${ZEON.TEXT}; overflow-wrap: anywhere; }
 .zeon-note h1, .zeon-note h2, .zeon-note h3 { color: #ffffff; margin: 6px 0 3px 0; line-height: 1.25; }
