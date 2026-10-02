@@ -35,18 +35,23 @@ const PRESETS = {
     "9:16 Portrait": { 1024: [768, 1376], 1536: [1152, 2064], 2048: [1536, 2752] },
 };
 
-/** zero-footprint hide; serialization untouched on purpose */
+/** zero-footprint hide — Pixaroma hideJsonWidget (js/shared/utils.mjs:128)
+ *  ported verbatim in technique: hidden + computeSize are NOT enough on
+ *  the Vue/Nodes-2.0 body; options.canvasOnly is what actually excludes
+ *  the widget from the Vue node render (v0.11.5+ slider lesson). */
 function collapse(w) {
     if (!w) return;
+    w.hidden = true;
     if (!w._zeonCollapsed) {
         w._zeonOrigCompute = w.computeSize;
         w.computeSize = () => [0, -4];
         w._zeonCollapsed = true;
     }
-    // some widgets become DOM-backed later (v0.11.5 lesson: the vue
-    // frontend rebuilt the numeric base combo as a visible slider AFTER
-    // our first pass) — hide the element too when it exists
-    try { if (w.element && w.element.style) w.element.style.display = "none"; } catch (_e) {}
+    if (!w.options) w.options = {};
+    w.options.canvasOnly = true;
+    const hideEl = () => { const el = w.element || w.inputEl; if (el) el.style.display = "none"; };
+    hideEl();
+    requestAnimationFrame(hideEl);
 }
 
 function shortLabel(opt) {
@@ -153,8 +158,8 @@ app.registerExtension({
             w.serialize = false;
 
             // one-time spawn size, proven timer pattern (constants only;
-            // v0.11.6: trimmed — 208 was slightly too tall)
-            try { node.setSize([310, 184]); } catch (_e) {}
+            // v0.11.7: width trimmed — 310 still slightly wide)
+            try { node.setSize([280, 184]); } catch (_e) {}
 
             function sync() {
                 const fam = orientW.value === "Portrait" ? "Portrait" : "Landscape";
