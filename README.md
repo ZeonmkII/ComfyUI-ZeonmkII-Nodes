@@ -2,6 +2,48 @@
 
 Custom nodes for [ComfyUI](https://github.com/comfyanonymous/ComfyUI) by ZeonmkII.
 
+## Nodes
+
+| Node | What it does |
+|---|---|
+| 🌀 **Character Swap** | LoRA-backed character switching — swap a prompt token for a character's trigger word, up to 8 slots, manual or random. |
+| 🔗 **LoRAs Loader** | Stack multiple LoRAs in one node (rework in progress). |
+| 🎲 **Random Image** | Pick a random image from a folder (rework in progress). |
+| 📐 **Resolution** | Krea-2-style resolution presets as horizontal chip rows — orientation, ratio families, base sizes, live pixel readout. |
+| ⏱ **Run Timer** | Wall-clock run timer with running / done / error states, CRT-style digits. |
+| 💾 **Save Image** | Full [comfy-image-saver](https://github.com/girishgopaul/comfy-image-saver) parity — every field a native, hand-editable widget — plus a native OS folder-browse dialog and live filename preview. |
+
+## Install
+
+Clone or download into your ComfyUI `custom_nodes` folder and restart ComfyUI:
+
+```
+git clone https://github.com/ZeonmkII/ComfyUI-ZeonmkII-Nodes.git
+```
+
+### Dependencies
+
+The pack ships a `requirements.txt` — **ComfyUI-Manager installs it automatically** on install/update. For a manual install there is exactly one dependency:
+
+```
+pip install piexif
+```
+
+(needed by 💾 Save Image for EXIF metadata in JPEG/WebP; portable Windows installs: `python_embeded\python.exe -m pip install piexif`)
+
+Everything else uses packages ComfyUI already bundles (torch, Pillow, etc.).
+
+Find the nodes under the **ZeonmkII** category, or search "zeon" in the node menu.
+
+## 💾 Save Image
+
+Vendored **verbatim** from comfy-image-saver (MIT © 2023 Girish Gopaul — see `nodes/saver_lib/`), so every input works exactly like upstream: filename tokens (`%width%`, `%seed%`, `%modelname%`, `%counter%`, …), extension/quality controls, workflow-JSON sidecar save, PNG metadata embedding.
+
+Two additions on top:
+
+- **📁 Browse** — opens the real OS folder dialog on the machine running ComfyUI. Picking a folder there approves it permanently (stored in ComfyUI's user directory); the dialog is the only thing that can approve a folder. Saving anywhere under ComfyUI's own input/output/temp folders always works without approval.
+- **Filename preview** — a live line under the path field showing where the next file lands, with `%width%` / `%height%` filled from the node and `%counter%` previewed as `00001`.
+
 ## 🌀 Character Swap
 
 Loads a character LoRA and swaps a token in your prompt for that character's trigger word — with up to 8 characters to switch between, manually or at random.
@@ -14,17 +56,7 @@ Loads a character LoRA and swaps a token in your prompt for that character's tri
 - **Enable toggles** — bench a character without deleting her setup; benched characters are skipped by random picks.
 - **Text-only characters** — set a slot's LoRA to `None` and the swap happens without loading anything.
 
-## Install
-
-Clone or download into your ComfyUI `custom_nodes` folder and restart ComfyUI:
-
-```
-git clone https://github.com/ZeonmkII/ComfyUI-ZeonmkII-Nodes.git
-```
-
-Find the node under the **ZeonmkII** category, or search "zeon" in the node menu.
-
-## Usage
+### Usage
 
 1. Add **🌀 Character Swap (ZeonmkII)** and set `char_count` to your number of characters.
 2. Fill each slot: LoRA file, trigger word, strengths.
@@ -32,7 +64,7 @@ Find the node under the **ZeonmkII** category, or search "zeon" in the node menu
 4. Connect your `model` and `clip` in; the outputs go to your sampler like a normal LoRA Loader, and the swapped `text` goes to your CLIP encode.
 5. Choose `manual` + `selection`, or `random` — connect a seed node to `random_seed` for reproducible picks.
 
-## Inputs
+### Inputs
 
 | Input | What it does |
 |---|---|
@@ -47,7 +79,7 @@ Find the node under the **ZeonmkII** category, or search "zeon" in the node menu
 
 Each slot has: `enabled`, `lora`, `trigger`, `strength_model`, `strength_clip`.
 
-## Outputs
+### Outputs
 
 | Output | What it is |
 |---|---|
@@ -59,3 +91,5 @@ Each slot has: `enabled`, `lora`, `trigger`, `strength_model`, `strength_clip`.
 ## License
 
 MIT © 2026 ZeonmkII
+
+Portions vendored from [comfy-image-saver](https://github.com/girishgopaul/comfy-image-saver) (MIT © 2023 Girish Gopaul) and techniques ported from ComfyUI-Pixaroma (MIT © 2026 pixaroma).
