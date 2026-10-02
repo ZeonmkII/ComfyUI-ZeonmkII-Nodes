@@ -39,6 +39,8 @@ Find the nodes under the **ZeonmkII** category, or search "zeon" in the node men
 
 Vendored **verbatim** from comfy-image-saver (MIT © 2023 Girish Gopaul — see `nodes/saver_lib/`), so every input works exactly like upstream: filename tokens (`%width%`, `%seed%`, `%modelname%`, `%counter%`, …), extension/quality controls, workflow-JSON sidecar save, PNG metadata embedding.
 
+**Civitai upload helpers default OFF** — `download_civitai_data` and `easy_remix` only polish metadata for uploads to civitai.com. Your PNGs always embed the full workflow and prompt regardless, so private saves lose nothing; flip both ON for a save you plan to upload.
+
 Two additions on top:
 
 - **📁 Browse** — opens the real OS folder dialog on the machine running ComfyUI. Picking a folder there approves it permanently (stored in ComfyUI's user directory); the dialog is the only thing that can approve a folder. Saving anywhere under ComfyUI's own input/output/temp folders always works without approval.
