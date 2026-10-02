@@ -342,8 +342,8 @@ class ImageSaverSimple:
             "result": (metadata.final_hashes, metadata.a111_params),
         }
 
-        if show_preview:
-            result["ui"] = {"images": [{"filename": filename, "subfolder": subfolder if subfolder != '.' else '', "type": 'output'} for filename in filenames]}
+        # show_preview input cut (Boss 22:16) - the UI preview always shows
+        result["ui"] = {"images": [{"filename": filename, "subfolder": subfolder if subfolder != '.' else '', "type": 'output'} for filename in filenames]}
 
         return result
 
@@ -358,31 +358,28 @@ class ImageSaver:
                 "extension":             (['png', 'jpeg', 'jpg', 'webp'], {                                        "tooltip": "file extension/type to save image as"}),
             },
             "optional": {
-                "steps":                 ("INT",     {"default": 20, "min": 0, "max": 10000,                       "tooltip": "number of steps"}),
-                "cfg":                   ("FLOAT",   {"default": 7.0, "min": 0.0, "max": 100.0,                    "tooltip": "CFG value"}),
                 "modelname":             ("STRING",  {"default": '', "multiline": False,                           "tooltip": "model name (can be multiple, separated by commas)"}),
-                "sampler_name":          ("STRING",  {"default": '', "multiline": False,                           "tooltip": "sampler name (as string)"}),
-                "scheduler_name":        ("STRING",  {"default": 'normal', "multiline": False,                     "tooltip": "scheduler name (as string)"}),
+                "1st_sampler_name":      ("STRING",  {"default": '', "multiline": False,                           "tooltip": "1st KSampler pass - sampler name"}),
+                "1st_scheduler_name":    ("STRING",  {"default": 'normal', "multiline": False,                     "tooltip": "1st KSampler pass - scheduler name"}),
+                "1st_steps":             ("INT",     {"default": 12, "min": 0, "max": 10000,                       "tooltip": "1st KSampler pass - steps"}),
+                "1st_cfg":               ("FLOAT",   {"default": 1.0, "min": 0.0, "max": 100.0,                    "tooltip": "1st KSampler pass - CFG"}),
+                "2nd_sampler_name":      ("STRING",  {"default": '', "multiline": False,                           "tooltip": "2nd KSampler cleanup pass - sampler name"}),
+                "2nd_scheduler_name":    ("STRING",  {"default": 'normal', "multiline": False,                     "tooltip": "2nd KSampler cleanup pass - scheduler name"}),
+                "2nd_steps":             ("INT",     {"default": 2, "min": 0, "max": 10000,                        "tooltip": "2nd KSampler cleanup pass - steps (0 = skip the pass in the metadata)"}),
+                "2nd_cfg":               ("FLOAT",   {"default": 1.0, "min": 0.0, "max": 100.0,                    "tooltip": "2nd KSampler cleanup pass - CFG (0 = skip the pass in the metadata)"}),
                 "positive":              ("STRING",  {"default": 'unknown', "multiline": True,                     "tooltip": "positive prompt"}),
                 "negative":              ("STRING",  {"default": 'unknown', "multiline": True,                     "tooltip": "negative prompt"}),
                 "seed_value":            ("INT",     {"default": 0, "min": 0, "max": 0xffffffffffffffff,           "tooltip": "seed"}),
                 "width":                 ("INT",     {"default": 512, "min": 0, "max": MAX_RESOLUTION, "step": 8,  "tooltip": "image width"}),
                 "height":                ("INT",     {"default": 512, "min": 0, "max": MAX_RESOLUTION, "step": 8,  "tooltip": "image height"}),
+                "denoise":               ("FLOAT",   {"default": 1.0, "min": 0.0, "max": 1.0,                      "tooltip": "denoise value"}),
+                "clip_skip":             ("INT",     {"default": 0, "min": -24, "max": 24,                         "tooltip": "skip last CLIP layers (positive or negative value, 0 for no skip)"}),
                 "lossless_webp":         ("BOOLEAN", {"default": True,                                             "tooltip": "if True, saved WEBP files will be lossless"}),
                 "quality_jpeg_or_webp":  ("INT",     {"default": 100, "min": 1, "max": 100,                        "tooltip": "quality setting of JPEG/WEBP"}),
                 "optimize_png":          ("BOOLEAN", {"default": False,                                            "tooltip": "if True, saved PNG files will be optimized (can reduce file size but is slower)"}),
-                "counter":               ("INT",     {"default": 0, "min": 0, "max": 0xffffffffffffffff,           "tooltip": "counter"}),
-                "denoise":               ("FLOAT",   {"default": 1.0, "min": 0.0, "max": 1.0,                      "tooltip": "denoise value"}),
-                "clip_skip":             ("INT",     {"default": 0, "min": -24, "max": 24,                         "tooltip": "skip last CLIP layers (positive or negative value, 0 for no skip)"}),
                 "time_format":           ("STRING",  {"default": "%Y-%m-%d-%H%M%S", "multiline": False,            "tooltip": "timestamp format"}),
                 "save_workflow_as_json": ("BOOLEAN", {"default": False,                                            "tooltip": "if True, also saves the workflow as a separate JSON file"}),
                 "embed_workflow":        ("BOOLEAN", {"default": True,                                             "tooltip": "if True, embeds the workflow in the saved image files.\nStable for PNG, experimental for WEBP.\nJPEG experimental and only if metadata size is below 65535 bytes"}),
-                "additional_hashes":     ("STRING",  {"default": "", "multiline": False,                           "tooltip": "hashes separated by commas, optionally with names. 'Name:HASH' (e.g., 'MyLoRA:FF735FF83F98')\nWith download_civitai_data set to true, weights can be added as well. (e.g., 'HASH:Weight', 'Name:HASH:Weight')"}),
-                "download_civitai_data": ("BOOLEAN", {"default": False,                                             "tooltip": "Download and cache data from civitai.com to save correct metadata. Allows LoRA weights to be saved to the metadata."}),
-                "easy_remix":            ("BOOLEAN", {"default": False,                                             "tooltip": "Strip LoRAs and simplify 'embedding:path' from the prompt to make the Remix option on civitai.com more seamless."}),
-                "show_preview":          ("BOOLEAN", {"default": True,                                             "tooltip": "if True, displays saved images in the UI preview"}),
-                "custom":                ("STRING",  {"default": "", "multiline": False,                           "tooltip": "custom string to add to the metadata, inserted into the a111 string between clip skip and model hash"}),
-                "label":                 ("STRING",  {"default": "", "multiline": False,                           "tooltip": "plain string usable in the filename/path via %label, independent of the 'custom' metadata field"}),
             },
             "hidden": {
                 "prompt": "PROMPT",
@@ -406,39 +403,57 @@ class ImageSaver:
         filename: str,
         path: str,
         extension: str,
-        steps: int = 20,
-        cfg: float = 7.0,
-        modelname: str = "",
-        sampler_name: str = "",
-        scheduler_name: str = "normal",
-        positive: str = "unknown",
-        negative: str = "unknown",
-        seed_value: int = 0,
-        width: int = 512,
-        height: int = 512,
-        lossless_webp: bool = True,
-        quality_jpeg_or_webp: int = 100,
-        optimize_png: bool = False,
-        counter: int = 0,
-        denoise: float = 1.0,
-        clip_skip: int = 0,
-        time_format: str = "%Y-%m-%d-%H%M%S",
-        save_workflow_as_json: bool = False,
-        embed_workflow: bool = True,
-        additional_hashes: str = "",
-        download_civitai_data: bool = True,
-        easy_remix: bool = True,
-        show_preview: bool = True,
-        custom: str = "",
-        label: str = "",
         prompt: dict[str, Any] | None = None,
         extra_pnginfo: dict[str, Any] | None = None,
+        **kwargs,
     ) -> dict[str, Any]:
-        metadata = ImageSaverMetadata.make_metadata(modelname, positive, negative, width, height, seed_value, steps, cfg, sampler_name, scheduler_name, denoise, clip_skip, custom, additional_hashes, download_civitai_data, easy_remix)
+        """ZeonmkII delta (Boss spec 2026-10-02 22:16): double KSampler block.
+        Input names carry leading digits (1st_/2nd_), which cannot be Python
+        parameter names, so every input arrives via kwargs (ComfyUI passes all
+        inputs by name). The two passes are joined for the metadata
+        (Steps: "12+2", Sampler: "euler+res"); a pass whose steps/cfg are 0 is
+        skipped. Civitai upload helpers, counter, additional_hashes, custom,
+        label and show_preview are cut per Boss."""
+        g = kwargs.get
+        modelname = g("modelname", "")
+        s1 = g("1st_sampler_name", "")
+        sch1 = g("1st_scheduler_name", "normal")
+        st1 = g("1st_steps", 12)
+        c1 = g("1st_cfg", 1.0)
+        s2 = g("2nd_sampler_name", "")
+        sch2 = g("2nd_scheduler_name", "normal")
+        st2 = g("2nd_steps", 2)
+        c2 = g("2nd_cfg", 1.0)
+        positive = g("positive", "unknown")
+        negative = g("negative", "unknown")
+        seed_value = g("seed_value", 0)
+        width = g("width", 512)
+        height = g("height", 512)
+        denoise = g("denoise", 1.0)
+        clip_skip = g("clip_skip", 0)
+        lossless_webp = g("lossless_webp", True)
+        quality_jpeg_or_webp = g("quality_jpeg_or_webp", 100)
+        optimize_png = g("optimize_png", False)
+        time_format = g("time_format", "%Y-%m-%d-%H%M%S")
+        save_workflow_as_json = g("save_workflow_as_json", False)
+        embed_workflow = g("embed_workflow", True)
 
-        path = make_pathname(path, metadata.width, metadata.height, metadata.seed, metadata.modelname, counter, time_format, metadata.sampler_name, metadata.steps, metadata.cfg, metadata.scheduler_name, metadata.denoise, metadata.clip_skip, metadata.custom, label)
+        def join_pass(a, b) -> str:
+            sa, sb = str(a), str(b)
+            sa = "" if sa in ("", "None") else sa
+            sb = "" if sb in ("", "0", "0.0", "None") else sb
+            return f"{sa}+{sb}" if sa and sb else (sa or sb)
 
-        filenames = ImageSaver.save_images(images, filename, extension, path, quality_jpeg_or_webp, lossless_webp, optimize_png, prompt, extra_pnginfo, save_workflow_as_json, embed_workflow, counter, time_format, metadata, label=label)
+        steps = join_pass(st1, st2)
+        cfg = join_pass(c1, c2)
+        sampler_name = join_pass(s1, s2)
+        scheduler_name = join_pass(sch1, sch2)
+
+        metadata = ImageSaverMetadata.make_metadata(modelname, positive, negative, width, height, seed_value, steps, cfg, sampler_name, scheduler_name, denoise, clip_skip, "", "", False, False)
+
+        path = make_pathname(path, metadata.width, metadata.height, metadata.seed, metadata.modelname, 0, time_format, metadata.sampler_name, metadata.steps, metadata.cfg, metadata.scheduler_name, metadata.denoise, metadata.clip_skip, "", "")
+
+        filenames = ImageSaver.save_images(images, filename, extension, path, quality_jpeg_or_webp, lossless_webp, optimize_png, prompt, extra_pnginfo, save_workflow_as_json, embed_workflow, 0, time_format, metadata, label="")
 
         subfolder = os.path.normpath(path)
 

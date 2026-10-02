@@ -29,8 +29,7 @@ const CHIPS = [
     { label: "+ Date", tok: "%date", title: "Save date (YYYY-MM-DD)" },
     { label: "+ Time", tok: "%time", title: "Save timestamp — format comes from the time_format field" },
     { label: "+ Seed", tok: "%seed", title: "Seed (from the seed_value field)" },
-    { label: "+ Counter", tok: "%counter", title: "Auto-increasing number — files never overwrite" },
-    { label: "+ Width", tok: "%width", title: "Image width in pixels" },
+        { label: "+ Width", tok: "%width", title: "Image width in pixels" },
     { label: "+ Height", tok: "%height", title: "Image height in pixels" },
     { label: "+ Model", tok: "%model", title: "Checkpoint filename (from the modelname field)" },
     { label: "+ Base model", tok: "%basemodelname", title: "Checkpoint name without extension" },
@@ -40,15 +39,14 @@ const CHIPS = [
     { label: "+ Scheduler", tok: "%scheduler_name", title: "Scheduler name" },
     { label: "+ Denoise", tok: "%denoise", title: "Denoise strength" },
     { label: "+ Clip skip", tok: "%clip_skip", title: "CLIP skip" },
-    { label: "+ Custom", tok: "%custom", title: "Your custom metadata string" },
-    { label: "+ Label", tok: "%label", title: "Plain label string for filename/path" },
-];
+        ];
 
 // The widget names whose values the preview can substitute live.
 const LIVE_FIELDS = [
     "filename", "path", "extension", "width", "height", "seed_value",
-    "time_format", "modelname", "steps", "cfg", "sampler_name",
-    "scheduler_name", "denoise", "clip_skip", "custom", "label",
+    "time_format", "modelname", "denoise", "clip_skip",
+    "1st_sampler_name", "1st_scheduler_name", "1st_steps", "1st_cfg",
+    "2nd_sampler_name", "2nd_scheduler_name", "2nd_steps", "2nd_cfg",
 ];
 
 function injectStyles() {
