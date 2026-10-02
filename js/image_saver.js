@@ -1,144 +1,165 @@
 /**
- * ComfyUI-ZeonmkII-Nodes — Save Image UI (v0.11.0)
+ * ComfyUI-ZeonmkII-Nodes — Save Image UI (v0.12.0)
  *
- * Pixaroma's layout language with our skin, minus the preview section:
- * ONE "SAVE" panel above the naming widgets — token chip buttons that
- * insert into the filename pattern, ✕ Clear, ↺ Reset, and a live
- * "will save as" line. The long Image-Saver option list lives as the
- * node's widgets + wire-in slots (Python side); this panel is the fast
- * face for naming. All widgets stay the serialized truth.
+ * Boss spec 2026-10-02: START OVER. The Python side is ComfyUI-Image-Saver
+ * vendored VERBATIM — every field stays a native hand-editable widget,
+ * exactly like upstream. The only additions are Pixaroma-style:
+ *   • a 📁 Browse button spliced right under the `path` widget that opens
+ *     the HOST's real OS folder dialog (/zeonmkii/api/save_image/pick_folder,
+ *     loopback-only; picking a folder approves it permanently — Pixaroma's
+ *     trust model, ported)
+ *   • a live filename preview line: filename_pattern with %width%/%height%
+ *     substituted live from the widgets, %counter% shown as 00001, all
+ *     other tokens left visible
+ *
+ * DOM-widget law: constant getMinHeight (never measured), element fills the
+ * container, children built once + only text nodes updated.
  */
 import { app } from "/scripts/app.js";
-import { ensureStyles, applyNodeSkin, makeBand } from "./zeonmkii_skin.js";
+import { ensureStyles, applyNodeSkin } from "./zeonmkii_skin.js";
 
 const NODE_CLASS = "ZeonmkII Save Image";
+const STYLE_ID = "zeonmkii-save-image-css";
 
-const TOKENS = ["%date", "%time", "%seed", "%counter", "%model", "%basemodelname",
-    "%width", "%height", "%sampler_name", "%steps", "%cfg", "%scheduler_name",
-    "%denoise", "%clip_skip", "%custom", "%label"];
-
-function nowStr(fmt) {
-    const d = new Date();
-    const p = (n) => String(n).padStart(2, "0");
-    if (fmt) {
-        // minimal strftime mirror for the common %time_format default
-        return fmt.replace(/%Y/g, d.getFullYear()).replace(/%m/g, p(d.getMonth() + 1))
-            .replace(/%d/g, p(d.getDate())).replace(/%H/g, p(d.getHours()))
-            .replace(/%M/g, p(d.getMinutes())).replace(/%S/g, p(d.getSeconds()));
-    }
-    return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+function injectStyles() {
+    if (document.getElementById(STYLE_ID)) return;
+    const s = document.createElement("style");
+    s.id = STYLE_ID;
+    s.textContent = `
+.zeon-save-row { display:flex; gap:6px; align-items:center; height:100%; }
+.zeon-save-btn { background:#7a1220; border:1px solid #a91d30; color:#ffd9de;
+  font:600 11px system-ui; padding:3px 10px; border-radius:4px; cursor:pointer;
+  white-space:nowrap; }
+.zeon-save-btn:hover { background:#9c1a2c; }
+.zeon-save-btn:disabled { opacity:.55; cursor:default; }
+.zeon-save-msg { color:#c9c9c9; font:11px system-ui; white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis; min-width:0; }
+.zeon-save-prev { color:#8f8f8f; font:11px ui-monospace,monospace;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+`;
+    document.head.appendChild(s);
 }
 
-function baseName(v) {
-    const s = String(v ?? "");
-    const b = s.split("/").pop();
-    return b.replace(/\.(safetensors|ckpt|pt|bin|gguf)$/i, "");
+/** %token% → live value where we can know it at build time */
+function renderPattern(pattern, map) {
+    return String(pattern || "").replace(/%([a-z_]+)%/gi, (m, k) => {
+        const key = k.toLowerCase();
+        return Object.prototype.hasOwnProperty.call(map, key) ? map[key] : m;
+    });
 }
 
 app.registerExtension({
-    name: "ComfyUI-ZeonmkII-Nodes.SaveImage",
-
-    nodeCreated(node) {
-        if (node.comfyClass !== NODE_CLASS) return;
-        try {
+    name: "ZeonmkII.SaveImage",
+    async beforeRegisterNodeDef(nodeType, nodeData) {
+        if (nodeData?.name !== NODE_CLASS) return;
+        const origCreated = nodeType.prototype.onNodeCreated;
+        nodeType.prototype.onNodeCreated = function () {
+            origCreated?.apply(this, arguments);
+            const node = this;
             ensureStyles();
             applyNodeSkin(node);
+            injectStyles();
 
-            const filenameW = node.widgets.find((x) => x.name === "filename");
-            const pathW = node.widgets.find((x) => x.name === "path");
-            const extW = node.widgets.find((x) => x.name === "extension");
-            const timeFmtW = node.widgets.find((x) => x.name === "time_format");
-            if (!filenameW) return;
+            const w = (name) => node.widgets?.find((x) => x.name === name);
+            const pathW = w("path");
+            const patW = w("filename_pattern");
+            const extW = w("extension");
+            const widthW = w("width");
+            const heightW = w("height");
+            if (!pathW) return;
 
-            const panel = document.createElement("div");
-            panel.style.cssText = "padding:4px 8px 2px 8px;";
+            // ── DOM widget: [📁 Browse] + message / preview lines ─────────
+            const el = document.createElement("div");
+            el.style.width = "100%";
+            el.style.height = "100%";
+            el.style.display = "flex";
+            el.style.flexDirection = "column";
+            el.style.justifyContent = "center";
+            el.style.gap = "2px";
 
-            const label = document.createElement("div");
-            label.className = "zeon-rowlabel";
-            label.textContent = "SAVE — FILENAME BUILDER";
-            panel.appendChild(label);
-
-            const chiprow = document.createElement("div");
-            chiprow.className = "zeon-chiprow";
-            panel.appendChild(chiprow);
+            const row = document.createElement("div");
+            row.className = "zeon-save-row";
+            const btn = document.createElement("button");
+            btn.className = "zeon-save-btn";
+            btn.type = "button";
+            btn.textContent = "📁 Browse";
+            const msg = document.createElement("span");
+            msg.className = "zeon-save-msg";
+            row.appendChild(btn);
+            row.appendChild(msg);
 
             const prev = document.createElement("div");
-            prev.className = "zeon-preview";
-            panel.appendChild(prev);
+            prev.className = "zeon-save-prev";
+            el.appendChild(row);
+            el.appendChild(prev);
 
-            const band = makeBand(node);
-
-            const w = node.addDOMWidget("zeon_save_panel", "panel", panel, {
-                serialize: false,
-                getMinHeight: () => 84,
+            const dom = node.addDOMWidget("zeon_save_browse", "zeonmkii/browse", el, {
+                getMinHeight: () => 58,
             });
-            w.serialize = false;
-            const idx = node.widgets.indexOf(filenameW);
-            if (idx >= 0) {
-                node.widgets.splice(node.widgets.indexOf(w), 1);
-                node.widgets.splice(idx, 0, w);
+            dom.serialize = false;
+            // splice directly under the `path` widget
+            const idx = node.widgets.indexOf(pathW);
+            if (idx >= 0 && idx < node.widgets.length - 1) {
+                node.widgets.splice(idx + 1, 0, node.widgets.pop());
             }
 
-            function insertToken(tok) {
-                const cur = String(filenameW.value ?? "");
-                filenameW.value = cur.endsWith(tok) ? cur : (cur ? cur + tok : tok);
-            }
-
-            for (const tok of TOKENS) {
-                const chip = document.createElement("button");
-                chip.type = "button";
-                chip.className = "zeon-chip";
-                chip.textContent = tok.replace("%", "");
-                chip.title = "Insert " + tok + " into the filename pattern";
-                chip.addEventListener("click", (e) => { e.stopPropagation(); insertToken(tok); });
-                chiprow.appendChild(chip);
-            }
-            const clear = document.createElement("button");
-            clear.type = "button";
-            clear.className = "zeon-chip";
-            clear.textContent = "✕ Clear";
-            clear.title = "Empty the filename pattern";
-            clear.addEventListener("click", (e) => { e.stopPropagation(); filenameW.value = ""; update(); });
-            chiprow.appendChild(clear);
-            const reset = document.createElement("button");
-            reset.type = "button";
-            reset.className = "zeon-chip";
-            reset.textContent = "↺ Reset";
-            reset.title = "Restore the default filename pattern";
-            reset.addEventListener("click", (e) => {
-                e.stopPropagation();
-                filenameW.value = "%time_%basemodelname_%seed";
-                update();
-            });
-            chiprow.appendChild(reset);
-
-            function update() {
-                let s = String(filenameW.value ?? "");
-                const fmt = timeFmtW ? String(timeFmtW.value ?? "") : "";
-                s = s.replace(/%time_format<([^>]*)>/g, (_m, f) => nowStr(f));
-                s = s.replace(/%date/g, nowStr());
-                s = s.replace(/%time/g, nowStr(fmt || "%Y-%m-%d-%H%M%S").replace(/-/g, "").slice(0) );
-                s = s.replace(/%basemodelname/g, baseName("model.safetensors") === "model" ? "<model>" : "<model>");
-                for (const t of ["%seed", "%counter", "%width", "%height", "%sampler_name", "%steps",
-                    "%cfg", "%scheduler_name", "%denoise", "%clip_skip", "%custom", "%label", "%model"]) {
-                    s = s.split(t).join("<" + t.slice(1) + ">");
-                }
-                prev.textContent = "→ " + (s || "<empty>") + "." + String(extW ? extW.value : "png");
-                const folder = pathW && String(pathW.value || "").trim();
-                band.text.textContent = "output/" + (folder ? folder + "/" : "") + (String(filenameW.value).trim() ? "…pattern set" : "default name");
-            }
-            node._zeonSaveSync = update;
-
-            const origConfigure = node.onConfigure;
-            node.onConfigure = function () {
-                const r = origConfigure ? origConfigure.apply(this, arguments) : undefined;
-                try { update(); } catch (_e) {}
-                return r;
+            const update = () => {
+                const map = {
+                    width: widthW ? widthW.value : 1024,
+                    height: heightW ? heightW.value : 1536,
+                    counter: "00001",
+                };
+                const name = renderPattern(patW ? patW.value : "", map);
+                const ext = String((extW && extW.value) || "png").replace(/^\./, "");
+                const folder = String(pathW.value || "").trim() || "(ComfyUI output)";
+                prev.textContent = name ? `${folder}/${name}.${ext}` : "set filename_pattern";
+                prev.title = prev.textContent;
             };
 
+            // refresh on edits — wrap callbacks, never replace
+            for (const target of [pathW, patW, extW, widthW, heightW]) {
+                if (!target) continue;
+                const orig = target.callback;
+                target.callback = function (...a) {
+                    try { orig?.apply(this, a); } catch (e) { /* keep ours */ }
+                    update();
+                };
+            }
+
+            let flashT = null;
+            const flash = (text, ms = 2600) => {
+                msg.textContent = text;
+                clearTimeout(flashT);
+                flashT = setTimeout(() => { msg.textContent = ""; }, ms);
+            };
+
+            btn.addEventListener("click", async () => {
+                btn.disabled = true;
+                btn.textContent = "Opening…";
+                let res = { ok: false };
+                try {
+                    const cur = encodeURIComponent(String(pathW.value || ""));
+                    const r = await fetch(`/zeonmkii/api/save_image/pick_folder?path=${cur}`);
+                    res = await r.json();
+                } catch (e) { res = { ok: false, message: String(e) }; }
+                btn.disabled = false;
+                btn.textContent = "📁 Browse";
+                if (res.ok && res.path) {
+                    pathW.value = res.path;
+                    flash(res.remembered ? "approved ✓" : "picked (approval failed to save)");
+                    update();
+                } else if (res.unavailable) {
+                    flash("Needs the browser on the ComfyUI machine — type the path");
+                } else if (res.busy) {
+                    flash("A folder dialog is already open");
+                } else if (res.cancelled) {
+                    /* silent */
+                } else {
+                    flash(res.message || "Browse failed — type the path instead");
+                }
+            });
+
             update();
-        } catch (err) {
-            console.error("[ZeonmkII Save Image] setup error:", err);
-        }
+        };
     },
 });

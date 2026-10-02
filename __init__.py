@@ -1,7 +1,7 @@
 """
 @author: ZeonmkII
 @title: ComfyUI-ZeonmkII-Nodes
-@version: 0.11.7
+@version: 0.12.0
 @project: https://github.com/ZeonmkII/ComfyUI-ZeonmkII-Nodes
 @description: Utility-layer nodes for ComfyUI — character swapping, prompt
 tooling, timers, Krea 2 resolution presets, native-parity
@@ -25,6 +25,11 @@ from .nodes.lora_loader import ZeonmkIILoRAsLoader
 from .nodes.random_image import ZeonmkIIRandomImage
 from .nodes.resolution import ZeonmkIIResolution
 from .nodes.run_timer import ZeonmkIIRunTimer
+
+try:
+    from .nodes import _browse_routes  # noqa: F401 - registers the Browse route on the server
+except Exception as _e:
+    print(f"[ZeonmkII] save-image browse route not registered: {_e}")
 
 NODE_CLASS_MAPPINGS = {
     "ZeonmkII Character Swap": ZeonmkIICharacterSwap,
