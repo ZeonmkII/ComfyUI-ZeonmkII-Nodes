@@ -57,16 +57,16 @@ export function ensureStyles() {
   display: flex; align-items: center; justify-content: center;
   color: ${ZEON.TEXT};
   font-variant-numeric: tabular-nums; white-space: nowrap;
-  text-shadow: 0 0 18px rgba(229, 72, 77, 0.35);
-  animation: zeon-glow 10s infinite ease-in-out;
 }
+/* glow lives ONLY on running (and matches its own color) — done is clean
+   white, error red w/ red glow; no more green-with-red-shadow clash */
+.zeon-clock.status-running { color: ${ZEON.ACCENT}; animation: zeon-glow 2s infinite ease-in-out; }
 @keyframes zeon-glow {
-  0%, 100% { text-shadow: 0 0 18px rgba(229, 72, 77, 0.35); }
-  50% { text-shadow: 0 0 28px rgba(229, 72, 77, 0.5); }
+  0%, 100% { text-shadow: 0 0 16px rgba(229, 72, 77, 0.45); }
+  50% { text-shadow: 0 0 30px rgba(229, 72, 77, 0.7); }
 }
-.zeon-clock.status-running { color: ${ZEON.ACCENT}; }
-.zeon-clock.status-done { color: #5fbf6e; }
-.zeon-clock.status-error { color: #e5484d; }
+.zeon-clock.status-done { color: #ffffff; text-shadow: none; }
+.zeon-clock.status-error { color: #e5484d; text-shadow: 0 0 14px rgba(228, 72, 77, 0.5); }
 .zeon-note { padding: 2px 10px 8px 10px; font-size: 12px; line-height: 1.5; color: ${ZEON.TEXT}; overflow-wrap: anywhere; }
 .zeon-note h1, .zeon-note h2, .zeon-note h3 { color: #ffffff; margin: 6px 0 3px 0; line-height: 1.25; }
 .zeon-note h1 { font-size: 15px; }

@@ -95,8 +95,18 @@ app.registerExtension({
 
             const w = node.addDOMWidget("zeon_timer", "timer", root, {
                 serialize: false,
+                // CONSTANT floor only (a constant can't ratchet — the
+                // v0.11.2 lesson) so even a very short node keeps the
+                // digits mostly visible.
+                getMinHeight: () => 70,
             });
             w.serialize = false;
+
+            // First-add size: one-time constants — wide enough for the
+            // digits, tall enough that the bottom edge (and its resize
+            // handles) sit clearly BELOW the number. Nothing measured,
+            // nothing to feed back. User resize stays free afterwards.
+            try { node.setSize([330, 130]); } catch (_e) {}
 
             node._zeonTimerClock = clock;
             liveNodes.add(node);
