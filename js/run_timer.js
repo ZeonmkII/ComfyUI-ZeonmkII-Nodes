@@ -91,10 +91,17 @@ app.registerExtension({
 
             const w = node.addDOMWidget("zeon_timer", "timer", clock, {
                 serialize: false,
-                getMinHeight: () => 118,
+                getMinHeight: () => 76,
             });
             w.serialize = false;
             w.element.appendChild(status);
+
+            // hug the content: the clock is one 50px line + one status
+            // line — nothing else. Shrink fresh AND loaded nodes so a
+            // previously-saved bloated timer also snaps to fit on reload.
+            requestAnimationFrame(() => {
+                try { node.setSize(node.computeSize()); } catch (_e) {}
+            });
 
             // THE FIX: the paint loop reads these off the node.
             node._zeonTimerHandles = { clock, status };
