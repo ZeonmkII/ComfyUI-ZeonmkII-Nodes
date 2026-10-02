@@ -385,6 +385,8 @@ class ImageSaver:
             },
         }
 
+    # ComfyUI requires RETURN_TYPES on every node, even output-only ones
+    RETURN_TYPES = ()
     FUNCTION = "save_files"
 
     OUTPUT_NODE = True
