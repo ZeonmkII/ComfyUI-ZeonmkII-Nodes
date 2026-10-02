@@ -82,19 +82,23 @@ app.registerExtension({
             ensureStyles();
             applyNodeSkin(node);
 
+            const root = document.createElement("div");
             const clock = document.createElement("div");
             clock.className = "zeon-clock";
             clock.textContent = "00:00.0";
             const status = document.createElement("div");
             status.className = "zeon-clock-status";
             status.textContent = STATUS_TEXT.idle;
+            root.append(clock, status);
 
-            const w = node.addDOMWidget("zeon_timer", "timer", clock, {
+            const w = node.addDOMWidget("zeon_timer", "timer", root, {
                 serialize: false,
-                getMinHeight: () => 76,
+                // hug the real, live content (number line + status line).
+                // Measured, not guessed — so the widget can never reserve
+                // space for content that isn't rendering.
+                getMinHeight: () => Math.max(root.offsetHeight || 0, 40),
             });
             w.serialize = false;
-            w.element.appendChild(status);
 
             // hug the content: the clock is one 50px line + one status
             // line — nothing else. Shrink fresh AND loaded nodes so a
