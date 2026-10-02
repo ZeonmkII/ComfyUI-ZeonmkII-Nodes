@@ -37,10 +37,16 @@ const PRESETS = {
 
 /** zero-footprint hide; serialization untouched on purpose */
 function collapse(w) {
-    if (!w || w._zeonCollapsed) return;
-    w._zeonOrigCompute = w.computeSize;
-    w.computeSize = () => [0, -4];
-    w._zeonCollapsed = true;
+    if (!w) return;
+    if (!w._zeonCollapsed) {
+        w._zeonOrigCompute = w.computeSize;
+        w.computeSize = () => [0, -4];
+        w._zeonCollapsed = true;
+    }
+    // some widgets become DOM-backed later (v0.11.5 lesson: the vue
+    // frontend rebuilt the numeric base combo as a visible slider AFTER
+    // our first pass) — hide the element too when it exists
+    try { if (w.element && w.element.style) w.element.style.display = "none"; } catch (_e) {}
 }
 
 function shortLabel(opt) {
@@ -61,7 +67,17 @@ app.registerExtension({
             const portW = node.widgets.find((x) => x.name === "portrait_ratio");
             const baseW = node.widgets.find((x) => x.name === "base_resolution");
             if (!orientW || !landW || !portW || !baseW) return;
-            collapse(orientW); collapse(landW); collapse(portW); collapse(baseW);
+            // re-find by name and re-collapse — the frontend can REPLACE
+            // widget objects after nodeCreated (v0.11.5: the numeric base
+            // combo came back as a visible slider). Idempotent + repeated.
+            const collapseAll = () => {
+                for (const name of ["orientation", "landscape_ratio", "portrait_ratio", "base_resolution"]) {
+                    collapse(node.widgets.find((x) => x.name === name));
+                }
+            };
+            collapseAll();
+            requestAnimationFrame(collapseAll);
+            requestAnimationFrame(() => requestAnimationFrame(collapseAll)); // second pass: conversions can land a tick later
 
             // ── panel: three button lines + band ────────────────────────
             const panel = document.createElement("div");
@@ -132,12 +148,13 @@ app.registerExtension({
             const w = node.addDOMWidget("zeon_res_panel", "panel", panel, {
                 serialize: false,
                 // CONSTANT (DOM-widget law — never measure)
-                getMinHeight: () => 168,
+                getMinHeight: () => 150,
             });
             w.serialize = false;
 
-            // one-time spawn size, proven timer pattern (constants only)
-            try { node.setSize([330, 208]); } catch (_e) {}
+            // one-time spawn size, proven timer pattern (constants only;
+            // v0.11.6: trimmed — 208 was slightly too tall)
+            try { node.setSize([310, 184]); } catch (_e) {}
 
             function sync() {
                 const fam = orientW.value === "Portrait" ? "Portrait" : "Landscape";
@@ -169,7 +186,7 @@ app.registerExtension({
             const origConfigure = node.onConfigure;
             node.onConfigure = function () {
                 const r = origConfigure ? origConfigure.apply(this, arguments) : undefined;
-                try { sync(); } catch (_e) {}
+                try { collapseAll(); sync(); } catch (_e) {}
                 return r;
             };
 
