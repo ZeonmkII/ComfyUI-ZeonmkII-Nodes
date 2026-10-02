@@ -1,19 +1,26 @@
 /**
  * ComfyUI-ZeonmkII-Nodes — Run Timer UI
  *
- * Frontend-only stopwatch (the Python side is a noop that ComfyUI skips on
- * Run). Listens to ComfyUI's run events: execution_start resets to zero and
+ * Frontend-only stopwatch (Python side is a noop ComfyUI skips on Run).
+ * Listens to ComfyUI's run events: execution_start resets to zero and
  * ticks live, execution_success freezes green, execution_error /
  * execution_interrupted freeze red. The last finished total is stored on
  * node.properties so it survives tab switches and reloads.
  *
- * v0.9.0 FIX ("it's not running" on MAGI): the first release created the
- * clock/status elements but never attached them to the node, so the paint
- * loop read undefined.textContent and crashed on its very first tick — the
- * display froze at 00:00.0 forever. They now live on _zeonTimerHandles,
- * every per-node paint runs inside its own try (one dead node can't kill
- * the rest — Pixaroma's rule), and the widget declares getMinHeight so the
- * Vue renderer gives it a real height.
+ * v0.11.3 — rebuilt on CRT Fancy Timer's exact widget mechanics (Boss's
+ * round-3 law: start from the working reference). CRT's timer is stable
+ * because its element is height:100% — the element ADAPTS to whatever
+ * size the widget gets and never measures itself to decide that size.
+ * History of the sins this replaces:
+ *   • v0.9–v0.11.1: status line appended INSIDE the clock element, then
+ *     silently deleted by the first textContent write — the node reserved
+ *     height for a ghost (the "empty rows below the number").
+ *   • v0.11.2: getMinHeight measured live offsetHeight while ComfyUI
+ *     writes the widget height back onto the element — a feedback loop
+ *     that ratcheted the node to infinite height.
+ * Now: ONE absolutely-centered digit element in a fill container. No
+ * status line (state shows in digit color: crimson running / green done /
+ * red error / default idle), no height math, nothing to feed back.
  */
 import { app } from "/scripts/app.js";
 import { api } from "/scripts/api.js";
@@ -34,20 +41,12 @@ function fmt(ms) {
     return String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0") + "." + tenths;
 }
 
-const STATUS_TEXT = {
-    idle: "waiting for a run",
-    running: "running…",
-    done: "done",
-    error: "error — stopped",
-};
-
 function paintNode(node) {
-    const h = node._zeonTimerHandles;
-    if (!h || !h.clock) return;
+    const clock = node._zeonTimerClock;
+    if (!clock) return;
     const t = state.running ? performance.now() - state.startMs : state.frozen;
-    h.clock.textContent = fmt(t);
-    h.clock.className = "zeon-clock" + (state.status !== "idle" ? " status-" + state.status : "");
-    h.status.textContent = STATUS_TEXT[state.status] || "";
+    clock.textContent = fmt(t);
+    clock.className = "zeon-clock" + (state.status !== "idle" ? " status-" + state.status : "");
 }
 
 function paintAll() {
@@ -82,33 +81,24 @@ app.registerExtension({
             ensureStyles();
             applyNodeSkin(node);
 
+            // CRT Fancy Timer structure, verbatim idea: a container that
+            // fills whatever space the widget gets (width/height 100%,
+            // position relative), digits absolutely centered inside.
+            // No getMinHeight, no measuring, no shrink games — the layout
+            // has nothing to feed back, so it cannot loop or drift.
             const root = document.createElement("div");
+            root.className = "zeon-timer-root";
             const clock = document.createElement("div");
             clock.className = "zeon-clock";
             clock.textContent = "00:00.0";
-            const status = document.createElement("div");
-            status.className = "zeon-clock-status";
-            status.textContent = STATUS_TEXT.idle;
-            root.append(clock, status);
+            root.appendChild(clock);
 
             const w = node.addDOMWidget("zeon_timer", "timer", root, {
                 serialize: false,
-                // hug the real, live content (number line + status line).
-                // Measured, not guessed — so the widget can never reserve
-                // space for content that isn't rendering.
-                getMinHeight: () => Math.max(root.offsetHeight || 0, 40),
             });
             w.serialize = false;
 
-            // hug the content: the clock is one 50px line + one status
-            // line — nothing else. Shrink fresh AND loaded nodes so a
-            // previously-saved bloated timer also snaps to fit on reload.
-            requestAnimationFrame(() => {
-                try { node.setSize(node.computeSize()); } catch (_e) {}
-            });
-
-            // THE FIX: the paint loop reads these off the node.
-            node._zeonTimerHandles = { clock, status };
+            node._zeonTimerClock = clock;
             liveNodes.add(node);
 
             // drop our handle when the node leaves the canvas (delete,

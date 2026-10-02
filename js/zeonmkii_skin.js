@@ -49,10 +49,13 @@ export function ensureStyles() {
   color:${ZEON.TEXT}; font-size:11px; min-height:18px;
 }
 .zeon-band .zeon-band-hue { width:8px; height:8px; border-radius:50%; flex:0 0 auto; }
+.zeon-timer-root { width: 100%; height: 100%; position: relative; }
 .zeon-clock {
   font-family: 'Orbitron', ui-monospace, Menlo, Consolas, monospace;
-  font-size: 50px; font-weight: bold; line-height: 1.1; text-align: center;
-  padding: 2px 10px 0 10px; color: ${ZEON.TEXT};
+  font-size: 50px; font-weight: bold;
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: ${ZEON.TEXT};
   font-variant-numeric: tabular-nums; white-space: nowrap;
   text-shadow: 0 0 18px rgba(229, 72, 77, 0.35);
   animation: zeon-glow 10s infinite ease-in-out;
@@ -64,10 +67,6 @@ export function ensureStyles() {
 .zeon-clock.status-running { color: ${ZEON.ACCENT}; }
 .zeon-clock.status-done { color: #5fbf6e; }
 .zeon-clock.status-error { color: #e5484d; }
-.zeon-clock-status {
-  font-size: 11px; color: #9aa0a6; text-align: center;
-  padding-bottom: 3px; letter-spacing: 0.5px;
-}
 .zeon-note { padding: 2px 10px 8px 10px; font-size: 12px; line-height: 1.5; color: ${ZEON.TEXT}; overflow-wrap: anywhere; }
 .zeon-note h1, .zeon-note h2, .zeon-note h3 { color: #ffffff; margin: 6px 0 3px 0; line-height: 1.25; }
 .zeon-note h1 { font-size: 15px; }
