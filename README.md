@@ -60,7 +60,7 @@ Loads a character LoRA and swaps a token in your prompt for that character's tri
 
 ### Usage
 
-1. Add **🌀 Character Swap (ZeonmkII)** and set `char_count` to your number of characters.
+1. Add **Character Swap ZeonmkII** and set `char_count` to your number of characters.
 2. Fill each slot: LoRA file, trigger word, strengths.
 3. Write the token into your prompt — e.g. "a photo of `<char>` in a garden".
 4. Connect your `model` and `clip` in; the outputs go to your sampler like a normal LoRA Loader, and the swapped `text` goes to your CLIP encode.

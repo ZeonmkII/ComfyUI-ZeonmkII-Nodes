@@ -1,7 +1,7 @@
 """
 @author: ZeonmkII
 @title: ComfyUI-ZeonmkII-Nodes
-@version: 0.13.3
+@version: 0.14.0
 @project: https://github.com/ZeonmkII/ComfyUI-ZeonmkII-Nodes
 @description: Utility-layer nodes for ComfyUI — character swapping, prompt
 tooling, timers, Krea 2 resolution presets, native-parity
@@ -40,11 +40,13 @@ NODE_CLASS_MAPPINGS = {
     "ZeonmkII Save Image": ZeonmkIISaveImage,
 }
 
+# Pixaroma-style display names (Boss 23:06): <name> ZeonmkII, plain text.
+# Keys stay stable so saved workflows and comfyClass JS matchers never break.
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "ZeonmkII Character Swap": "🌀 Character Swap (ZeonmkII)",
-    "ZeonmkII LoRAs Loader": "🔗 LoRAs Loader (ZeonmkII)",
-    "ZeonmkII Random Image": "🎲 Random Image (ZeonmkII)",
-    "ZeonmkII Resolution": "📐 Resolution (ZeonmkII)",
-    "ZeonmkII Run Timer": "⏱ Run Timer (ZeonmkII)",
-    "ZeonmkII Save Image": "💾 Save Image (ZeonmkII)",
+    "ZeonmkII Character Swap": "Character Swap ZeonmkII",
+    "ZeonmkII LoRAs Loader": "LoRAs Loader ZeonmkII",
+    "ZeonmkII Random Image": "Random Image ZeonmkII",
+    "ZeonmkII Resolution": "Resolution ZeonmkII",
+    "ZeonmkII Run Timer": "Run Timer ZeonmkII",
+    "ZeonmkII Save Image": "Save Image ZeonmkII",
 }
