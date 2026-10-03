@@ -23,6 +23,8 @@ import json
 import os
 import random
 
+from ._paths import resolve_path
+
 
 class ZeonmkIIRandomPrompt:
     DESCRIPTION = (
@@ -43,8 +45,8 @@ class ZeonmkIIRandomPrompt:
                 "path": ("STRING", {
                     "multiline": False,
                     "default": "",
-                    "placeholder": "Path to prompts.txt or the prompt folder",
-                    "tooltip": "Text file (single_file) or folder of .txt files (folder mode).",
+                    "placeholder": "ComfyUI/input/",
+                    "tooltip": "Text file (single_file) or folder of .txt files (folder mode). Relative paths like 'ComfyUI/input/prompts.txt' resolve on any install.",
                 }),
                 "selection_mode": (["random", "tracked_random", "sequential"], {
                     "default": "tracked_random",
@@ -83,7 +85,7 @@ class ZeonmkIIRandomPrompt:
     # ---------- main (v3 structure, pure seed) ----------
 
     def pick_prompt(self, mode, path, selection_mode, random_seed):
-        path = os.path.expanduser(path)
+        path = resolve_path(path)
 
         if mode == "single_file":
             if not os.path.exists(path):

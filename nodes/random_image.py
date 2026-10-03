@@ -18,6 +18,8 @@ import numpy as np
 import torch
 from PIL import Image
 
+from ._paths import resolve_path
+
 
 def _pil2tensor(image):
     return torch.from_numpy(np.array(image).astype(np.float32) / 255.0).unsqueeze(0)
@@ -38,8 +40,8 @@ class ZeonmkIIRandomImage:
             "required": {
                 "image_directory": ("STRING", {
                     "multiline": False,
-                    "placeholder": "Path to your image folder",
-                    "tooltip": "Absolute path to the folder to pick from.",
+                    "placeholder": "ComfyUI/input/",
+                    "tooltip": "Folder to pick from — absolute or relative ('ComfyUI/input/' and 'input' both resolve on any install: launch folder, ComfyUI root, then its parent).",
                 }),
                 "random_seed": ("INT", {
                     "default": 0, "min": 0, "max": 0xFFFFFFFFFFFFFFFF,
@@ -64,6 +66,7 @@ class ZeonmkIIRandomImage:
     CATEGORY = "ZeonmkII"
 
     def load_random(self, image_directory, random_seed, exclude_selected=True, reset_cache=False):
+        image_directory = resolve_path(image_directory)
         if not os.path.exists(image_directory):
             raise Exception(f"Image directory {image_directory} does not exist")
 

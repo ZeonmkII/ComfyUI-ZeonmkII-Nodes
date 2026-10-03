@@ -17,6 +17,7 @@ from aiohttp import web
 from server import PromptServer
 
 from ._folder_guard import prescreen, folder_allowed
+from ._paths import resolve_path
 
 # mirrors nodes/random_image.py load_random — keep in lockstep
 VALID_EXTENSIONS = (".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif")
@@ -28,7 +29,7 @@ async def api_zeon_random_stats(request):
     """{ok:true,total,picked} for an approved image folder.
     Fails with reason 'unapproved' (not on the allowlist), 'missing' (no
     such directory) or 'unreadable' (listing failed)."""
-    path = request.query.get("path", "")
+    path = resolve_path(request.query.get("path", ""))
     if not path or not prescreen(path) or not folder_allowed(path):
         return web.json_response({"ok": False, "reason": "unapproved"})
     if not os.path.isdir(path):
@@ -58,7 +59,7 @@ async def api_zeon_random_reset(request):
     """Delete the folder's no-repeat cache file IMMEDIATELY (Boss's design,
     v0.16.1: the ♻ button acts NOW — no sticky boolean ride-along). Same
     folder-guard trust model as stats."""
-    path = request.query.get("path", "")
+    path = resolve_path(request.query.get("path", ""))
     if not path or not prescreen(path) or not folder_allowed(path):
         return web.json_response({"ok": False, "reason": "unapproved"})
     if not os.path.isdir(path):

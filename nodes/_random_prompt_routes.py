@@ -17,6 +17,7 @@ from aiohttp import web
 from server import PromptServer
 
 from ._folder_guard import prescreen, folder_allowed
+from ._paths import resolve_path
 
 
 def _cache_file_for(path, mode):
@@ -45,7 +46,7 @@ def _guarded(request_path):
 @PromptServer.instance.routes.get("/zeonmkii/api/random_prompt/stats")
 async def api_zeon_prompt_stats(request):
     """{ok:true,total,picked} for an approved prompt file/folder."""
-    path = request.query.get("path", "")
+    path = resolve_path(request.query.get("path", ""))
     mode = request.query.get("mode", "single_file")
     if not _guarded(path):
         return web.json_response({"ok": False, "reason": "unapproved"})
@@ -80,7 +81,7 @@ async def api_zeon_prompt_stats(request):
 async def api_zeon_prompt_reset(request):
     """Delete the tracking cache file IMMEDIATELY (v0.16.1 design: the ♻
     button acts now, no sticky boolean ride-along)."""
-    path = request.query.get("path", "")
+    path = resolve_path(request.query.get("path", ""))
     mode = request.query.get("mode", "single_file")
     if not _guarded(path):
         return web.json_response({"ok": False, "reason": "unapproved"})
