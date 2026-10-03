@@ -10,13 +10,13 @@
  */
 
 export const ZEON = {
-  ACCENT: "#ff2b3a",      // Zeon crimson
-  ACCENT_DIM: "#b31e28",
+  ACCENT: "#A20000",      // Zeon crimson
+  ACCENT_DIM: "#750000",
   BODY: "#121316",        // node body
   PANEL: "#1a1c20",       // raised areas
   TEXT: "#e8e6e3",
   // per-slot identity colors, 8 slots
-  SLOT_HUES: ["#ff2b3a", "#e88b3a", "#d8b13a", "#5fbf6e", "#4fb8d8", "#7a7af0", "#c76ad0", "#e06a9a"],
+  SLOT_HUES: ["#A20000", "#e88b3a", "#d8b13a", "#5fbf6e", "#4fb8d8", "#7a7af0", "#c76ad0", "#e06a9a"],
 };
 
 const STYLE_ID = "zeonmkii-skin-styles";
@@ -62,11 +62,11 @@ export function ensureStyles() {
    white, error red w/ red glow; no more green-with-red-shadow clash */
 .zeon-clock.status-running { color: ${ZEON.ACCENT}; animation: zeon-glow 2s infinite ease-in-out; }
 @keyframes zeon-glow {
-  0%, 100% { text-shadow: 0 0 16px rgba(229, 72, 77, 0.45); }
-  50% { text-shadow: 0 0 30px rgba(229, 72, 77, 0.7); }
+  0%, 100% { text-shadow: 0 0 16px rgba(162,0,0, 0.45); }
+  50% { text-shadow: 0 0 30px rgba(162,0,0, 0.7); }
 }
 .zeon-clock.status-done { color: #ffffff; text-shadow: none; }
-.zeon-clock.status-error { color: #ff2b3a; text-shadow: 0 0 14px rgba(255, 43, 58, 0.5); }
+.zeon-clock.status-error { color: #A20000; text-shadow: 0 0 14px rgba(162,0,0, 0.5); }
 .zeon-note { padding: 2px 10px 8px 10px; font-size: 12px; line-height: 1.5; color: ${ZEON.TEXT}; overflow-wrap: anywhere; }
 .zeon-note h1, .zeon-note h2, .zeon-note h3 { color: #ffffff; margin: 6px 0 3px 0; line-height: 1.25; }
 .zeon-note h1 { font-size: 15px; }

@@ -99,7 +99,7 @@ function injectCSS() {
       border-radius:50%; background:rgba(0,0,0,0.7); color:#ddd;
       font:10px/15px 'Segoe UI',system-ui,sans-serif; text-align:center; opacity:0; transition:opacity .12s; }
     .z-ll-info-th:hover .z-ll-thx { opacity:1; }
-    .z-ll-thx:hover { background:#ff2b3a; color:#fff; }
+    .z-ll-thx:hover { background:#A20000; color:#fff; }
     .z-ll-info-h { min-width:0; flex:1; }
     .z-ll-info-h h3 { margin:0 0 4px; font-size:13.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .z-ll-info-meta { font:10px monospace; color:#7a7a7a; line-height:1.7; }
@@ -124,11 +124,11 @@ function injectCSS() {
     .z-ll-chip { font:10.5px 'Segoe UI'; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.14);
       color:#b8b8b8; border-radius:99px; padding:3px 9px; cursor:pointer; user-select:none; display:flex; align-items:center; gap:4px; max-width:100%; }
     .z-ll-chip:hover { border-color:var(--acc,${BRAND}); }
-    .z-ll-chip.sel { background:color-mix(in srgb, var(--acc,${BRAND}) 18%, transparent); border-color:var(--acc,${BRAND}); color:#ff8a91; }
+    .z-ll-chip.sel { background:color-mix(in srgb, var(--acc,${BRAND}) 18%, transparent); border-color:var(--acc,${BRAND}); color:#c76666; }
     .z-ll-chip.sel::before { content:"✓"; font-size:9px; flex:none; }
     .z-ll-chip .ct { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .z-ll-chip-none { color:#777; font-size:11px; }
-    .z-ll-chip .cx { margin-left:1px; color:#ff8a91; cursor:pointer; opacity:.6; font-size:10px; flex:none; }
+    .z-ll-chip .cx { margin-left:1px; color:#c76666; cursor:pointer; opacity:.6; font-size:10px; flex:none; }
     .z-ll-chip .cx:hover { opacity:1; }
     .z-ll-srctoggle { margin-left:auto; display:flex; border:1px solid #2a2a2a; border-radius:99px; overflow:hidden; }
     .z-ll-srctoggle .sg { font:9px 'Segoe UI'; text-transform:none; letter-spacing:0; color:#9a9a9a; padding:2px 9px; cursor:pointer; }
@@ -161,7 +161,7 @@ function injectCSS() {
     .z-ll-info-foot .b.gh:hover { border-color:${BRAND}; color:#fff; }
     .z-ll-info-foot .b.dis { opacity:.4; pointer-events:none; }
     .z-ll-info-foot .b.del { flex:0 0 auto; min-width:38px; border:1px solid rgba(255,255,255,0.14); color:#c9736a; }
-    .z-ll-info-foot .b.del:hover { border-color:#ff2b3a; color:#fff; background:rgba(255,43,58,0.12); }
+    .z-ll-info-foot .b.del:hover { border-color:#A20000; color:#fff; background:rgba(162,0,0,0.12); }
   `;
   document.head.appendChild(s);
 }

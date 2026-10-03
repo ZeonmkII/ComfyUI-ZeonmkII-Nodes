@@ -13,7 +13,7 @@ import { app } from "/scripts/app.js";
 const HIDDEN_TAG = "zeon_hidden";
 const NODE_CLASS = "ZeonmkII Character Swap";
 const MAX_SLOTS = 8;
-const ACCENT = "#ff2b3a";   // Zeon crimson
+const ACCENT = "#A20000";   // Zeon crimson
 const CHARCOAL = "#121316"; // node body
 const origProps = {};
 

@@ -7,7 +7,7 @@
 
 import { app } from "../../../scripts/app.js";
 
-export const BRAND = "#ff2b3a";
+export const BRAND = "#A20000";
 export const STATE_PROP = "loraLoaderState";
 export const HIDDEN_INPUT = "LoraLoaderState"; // matches the Python INPUT_TYPES key
 export const DEFAULTS_SETTING = "ZeonmkII.LoraLoader.Defaults";

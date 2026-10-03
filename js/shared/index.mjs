@@ -6,7 +6,7 @@
 // passthrough, node-def refresh signal. Kept tiny on purpose — no suite
 // machinery (global accents, help system, sweep registry).
 
-export const BRAND = "#ff2b3a"; // Zeon crimson
+export const BRAND = "#A20000"; // Zeon crimson
 
 // Hide an internal serialization widget (e.g. the LoraLoaderState STRING the
 // graphToPrompt hook writes) in BOTH renderers:

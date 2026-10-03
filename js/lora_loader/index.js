@@ -12,7 +12,7 @@ import { listLoras, invalidateList, invalidateAllInfo } from "./api.mjs";
 import { isVueNodes } from "../shared/nodes2.mjs";
 import { isGraphLoading } from "../shared/graph_loading.mjs";
 import {
-  HIDDEN_INPUT, DEFAULT_STATE,
+  BRAND, HIDDEN_INPUT, DEFAULT_STATE,
   readState, loadDefaults, promptState,
 } from "./core.mjs";
 import { injectCSS, renderNode, contentHeight } from "./render.mjs";
@@ -21,8 +21,6 @@ import { openLoraPanel, closeLoraPanelFor } from "./settings.mjs";
 import { closeInfoPanelFor } from "./info_panel.mjs";
 import { closeLoraDropdown } from "./dropdown.mjs";
 import { closeRowMenu } from "./interaction.mjs";
-// Side-effect import: registers the XY Plot sweep provider so this node's rows show
-// up in the XY picker and can be swept per cell.
 
 const CLASS = "ZeonmkII LoRAs Loader";
 
@@ -187,6 +185,8 @@ app.registerExtension({
 
   nodeCreated(node) {
     if (node.comfyClass !== CLASS) return;
+    node.color = BRAND;         // blood-red title bar, matches the whole pack
+    node.bgcolor = "#121316";   // near-black body (skin BODY grey)
     setupNode(node);
   },
 

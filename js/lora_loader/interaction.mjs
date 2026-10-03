@@ -32,7 +32,7 @@ function injectMenuCSS() {
       font:12px 'Segoe UI',system-ui,sans-serif; color:#e0e0e0; padding:3px 0; }
     .z-ll-menu .it { display:flex; align-items:center; gap:9px; padding:7px 12px; cursor:pointer; }
     .z-ll-menu .it .k { width:14px; text-align:center; color:#8a8a8a; }
-    .z-ll-menu .it:hover { background:var(--acc,#ff2b3a); color:#fff; } .z-ll-menu .it:hover .k { color:#fff; }
+    .z-ll-menu .it:hover { background:var(--acc,#A20000); color:#fff; } .z-ll-menu .it:hover .k { color:#fff; }
     .z-ll-menu .it.danger:hover { background:#e2504a; }
     .z-ll-menu .it.dis { opacity:.35; pointer-events:none; }
     .z-ll-menu .sep { height:1px; background:#1b1b1b; margin:3px 0; }
