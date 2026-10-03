@@ -1,0 +1,245 @@
+// ZeonmkII LoRAs Loader - all node-body events. ONE delegated set of listeners on
+// the widget element dispatches on the data-act attributes render.mjs stamps.
+// `refresh(structural)` (from index.js) re-renders and, when structural, re-fits
+// the node height.
+
+import {
+  readState, patchLora, addLora, removeLora, duplicateLora, moveLora,
+  setAllOn, countOn, accentOf, MAX_LORAS,
+} from "./core.mjs";
+import { openLoraDropdown } from "./dropdown.mjs";
+import { hasLora } from "./api.mjs";
+import { openInfoPanel, autoTickAfterPick } from "./info_panel.mjs";
+import { openLoraPanel } from "./settings.mjs";
+
+let _menu = null;
+let _menuCleanup = null;
+
+function closeRowMenu() {
+  if (_menuCleanup) { try { _menuCleanup(); } catch {} }
+  _menuCleanup = null;
+  if (_menu) { try { _menu.remove(); } catch {} }
+  _menu = null;
+}
+
+function injectMenuCSS() {
+  if (document.getElementById("z-ll-menu-css")) return;
+  const s = document.createElement("style");
+  s.id = "z-ll-menu-css";
+  s.textContent = `
+    .z-ll-menu { position:fixed; z-index:10030; width:168px; background:#2b2b2b; border:1px solid #4a4a4a;
+      border-radius:8px; box-shadow:0 12px 34px rgba(0,0,0,0.65); overflow:hidden;
+      font:12px 'Segoe UI',system-ui,sans-serif; color:#e0e0e0; padding:3px 0; }
+    .z-ll-menu .it { display:flex; align-items:center; gap:9px; padding:7px 12px; cursor:pointer; }
+    .z-ll-menu .it .k { width:14px; text-align:center; color:#8a8a8a; }
+    .z-ll-menu .it:hover { background:var(--acc,#f66744); color:#fff; } .z-ll-menu .it:hover .k { color:#fff; }
+    .z-ll-menu .it.danger:hover { background:#e2504a; }
+    .z-ll-menu .it.dis { opacity:.35; pointer-events:none; }
+    .z-ll-menu .sep { height:1px; background:#1b1b1b; margin:3px 0; }
+  `;
+  document.head.appendChild(s);
+}
+
+function openRowMenu(node, id, x, y, refresh) {
+  closeRowMenu();
+  injectMenuCSS();
+  const st = readState(node);
+  const idx = st.loras.findIndex((e) => e.id === id);
+  if (idx < 0) return;
+  const e = st.loras[idx];
+
+  const menu = document.createElement("div");
+  menu.className = "z-ll-menu";
+  // the menu is fixed-positioned on <body>, so it inherits nothing - hand it
+  // this node's accent explicitly or its hover stays the brand orange
+  menu.style.setProperty("--acc", accentOf(node));
+  const item = (k, label, cb, { danger = false, dis = false } = {}) => {
+    const it = document.createElement("div");
+    it.className = "it" + (danger ? " danger" : "") + (dis ? " dis" : "");
+    const ks = document.createElement("span"); ks.className = "k"; ks.textContent = k;
+    const ls = document.createElement("span"); ls.textContent = label;
+    it.append(ks, ls);
+    if (!dis) it.addEventListener("click", () => { closeRowMenu(); cb(); });
+    return it;
+  };
+  const sep = () => { const d = document.createElement("div"); d.className = "sep"; return d; };
+
+  menu.append(
+    item("i", "More info", () => openInfoPanel(node, id, refresh)),
+    sep(),
+    item("↑", "Move up", () => { moveLora(node, id, -1); refresh(true); }, { dis: idx === 0 }),
+    item("↓", "Move down", () => { moveLora(node, id, +1); refresh(true); }, { dis: idx === st.loras.length - 1 }),
+    item("⧉", "Duplicate", () => { duplicateLora(node, id); refresh(true); },
+      { dis: st.loras.length >= MAX_LORAS }),
+    item(e.on ? "◉" : "○", e.on ? "Disable" : "Enable",
+      () => {
+        const cur = readState(node).loras.find((x) => x.id === id); // re-read at click time
+        patchLora(node, id, { on: !cur?.on });
+        refresh(false);
+      }),
+    sep(),
+    item("⌫", "Remove", () => { removeLora(node, id); refresh(true); }, { danger: true }),
+  );
+
+  document.body.appendChild(menu);
+  const mw = menu.offsetWidth, mh = menu.offsetHeight;
+  menu.style.left = Math.max(6, Math.min(x, window.innerWidth - mw - 6)) + "px";
+  menu.style.top = Math.max(6, Math.min(y, window.innerHeight - mh - 6)) + "px";
+
+  const onDown = (ev) => { if (!menu.contains(ev.target)) closeRowMenu(); };
+  const onKey = (ev) => { if (ev.key === "Escape") closeRowMenu(); };
+  _menu = menu;                       // set BEFORE the timer so the guard below can see it
+  setTimeout(() => {
+    // Same guard the other popups use: if this menu was closed or replaced in the
+    // same tick, _menuCleanup has already run its (no-op) removes, so attaching
+    // now would strand capture-phase listeners forever - and a stranded onDown
+    // closes every later row menu on the pointerdown before the click, making its
+    // items unclickable.
+    if (_menu !== menu) return;
+    document.addEventListener("pointerdown", onDown, true);
+    document.addEventListener("keydown", onKey, true);
+  }, 0);
+  _menuCleanup = () => {
+    document.removeEventListener("pointerdown", onDown, true);
+    document.removeEventListener("keydown", onKey, true);
+  };
+}
+
+function rowIdOf(target) {
+  const row = target.closest?.(".z-ll-row");
+  return row?.dataset?.id || null;
+}
+
+function stepWeight(node, id, dir, which, refresh) {
+  const st = readState(node);
+  const e = st.loras.find((x) => x.id === id);
+  if (!e) return;
+  if (which === "c" && st.linkStrength) return; // clip follows model when linked (defensive)
+  if (which === "c") patchLora(node, id, { sc: e.sc + dir * st.step });
+  else patchLora(node, id, { sm: e.sm + dir * st.step });
+  refresh(false);
+}
+
+export function attachInteractions(node, widgetEl, refresh) {
+  widgetEl.addEventListener("click", (ev) => {
+    const t = ev.target;
+    if (t?.dataset?.act === "wval" || t?.dataset?.act === "wcval") return; // let the weight field focus
+    const act = t.closest?.("[data-act]")?.dataset?.act;
+    if (!act) return;
+    ev.stopPropagation();
+
+    if (act === "add") {
+      const res = addLora(node, "");
+      refresh(true);
+      // Open the picker right away on the new row so it's a one-click add-and-pick.
+      if (res.ok) {
+        requestAnimationFrame(() => {
+          const rowEl = widgetEl.querySelector(`.z-ll-row[data-id="${res.state.loras[res.index].id}"] .z-ll-name`);
+          if (rowEl) openNamePicker(node, res.state.loras[res.index].id, rowEl, refresh);
+        });
+      }
+      return;
+    }
+    if (act === "allToggle") {
+      const st = readState(node);
+      setAllOn(node, !(st.loras.length && countOn(st) === st.loras.length));
+      refresh(false);
+      return;
+    }
+    if (act === "gear") { openLoraPanel(node, refresh); return; }
+
+    const id = rowIdOf(t);
+    if (!id) return;
+    if (act === "name") { openNamePicker(node, id, t.closest(".z-ll-name"), refresh); return; }
+    if (act === "info") { openInfoPanel(node, id, refresh); return; }
+    if (act === "toggle") {
+      const e = readState(node).loras.find((x) => x.id === id);
+      patchLora(node, id, { on: !e?.on });
+      refresh(false);
+      return;
+    }
+    if (act === "winc") { stepWeight(node, id, +1, "m", refresh); return; }
+    if (act === "wdec") { stepWeight(node, id, -1, "m", refresh); return; }
+    if (act === "wcinc") { stepWeight(node, id, +1, "c", refresh); return; }
+    if (act === "wcdec") { stepWeight(node, id, -1, "c", refresh); return; }
+  });
+
+  // Commit a typed weight on change (fires on blur / Enter).
+  widgetEl.addEventListener("change", (ev) => {
+    const act = ev.target?.dataset?.act;
+    if (act !== "wval" && act !== "wcval") return;
+    const id = rowIdOf(ev.target);
+    if (!id) return;
+    const raw = parseFloat(ev.target.value);
+    if (!Number.isFinite(raw)) { refresh(false); return; } // garbage typed -> revert to stored value
+    if (act === "wcval" && readState(node).linkStrength) { refresh(false); return; } // linked: clip follows model
+    patchLora(node, id, act === "wcval" ? { sc: raw } : { sm: raw });
+    refresh(false);
+  });
+
+  // Focus a weight field -> select its text for quick overwrite.
+  widgetEl.addEventListener("focusin", (ev) => {
+    const act = ev.target?.dataset?.act;
+    if (act === "wval" || act === "wcval") ev.target.select?.();
+  });
+
+  // Keep typing inside a weight field from triggering canvas shortcuts; Enter commits.
+  widgetEl.addEventListener("keydown", (ev) => {
+    const act = ev.target?.dataset?.act;
+    if (act !== "wval" && act !== "wcval") return;
+    ev.stopPropagation();
+    if (ev.key === "Enter") { ev.preventDefault(); ev.target.blur(); }
+  });
+
+  // Right-click a row -> the row menu.
+  widgetEl.addEventListener("contextmenu", (ev) => {
+    const id = rowIdOf(ev.target);
+    if (!id) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    openRowMenu(node, id, ev.clientX, ev.clientY, refresh);
+  });
+}
+
+// A LoRA MOVED to another folder is the same LoRA, not a new one. Picking it from
+// its new place on the row that still points at the old place must keep the words
+// the user picked and typed there (reported 2026-09-15). It is a move only when the
+// FILE NAME matches AND the old file is really gone from the list: this install has
+// ernie\pixabunny26 and krea2\pixabunny26, two different LoRAs sharing a file name,
+// and swapping between those must still clear (patchLora's rule, pattern #12).
+// hasLora() is null while the list is unknown, which counts as "not a move".
+function isMovedLora(oldName, newName) {
+  if (!oldName || !newName || oldName === newName) return false;
+  const fileOf = (n) => String(n).replace(/\\/g, "/").split("/").pop().toLowerCase();
+  if (fileOf(oldName) !== fileOf(newName)) return false;
+  return hasLora(oldName) === false;
+}
+
+function openNamePicker(node, id, anchorEl, refresh) {
+  const e = readState(node).loras.find((x) => x.id === id);
+  openLoraDropdown(anchorEl, {
+    current: e?.name || "",
+    accent: accentOf(node),
+    onPick: (name) => {
+      // Read the row NOW, not the `e` captured when the picker opened: the picker
+      // stays open while other things can change the row.
+      const row = readState(node).loras.find((x) => x.id === id);
+      const carry = row && isMovedLora(row.name, name)
+        ? { triggers: [...(row.triggers || [])], custom: [...(row.custom || [])], at: !!row.at }
+        : null;
+      patchLora(node, id, { name });
+      // patchLora clears the words on ANY name change; for a moved file put them
+      // back in a second patch that does not touch the name. The typed words then
+      // reach the per-file store under the NEW name the next time the info panel
+      // opens (hydrateCustom pushes row words the store lacks).
+      if (carry) patchLora(node, id, carry);
+      refresh(false);
+      // Tick this LoRA's own trigger words straight away, so a LoRA that needs
+      // one works without having to open the info panel and find it. Async and
+      // deliberately not awaited: the pick must feel instant.
+      autoTickAfterPick(node, id, name, refresh);
+    },
+  });
+}
+
+export { closeRowMenu };
