@@ -9,7 +9,7 @@
  * with scoped classes + a stylesheet appended to document.head once.
  */
 
-import { app } from "../../scripts/app.js";
+import { app } from "/scripts/app.js";  // absolute — pack convention (relative depth 404s silently)
 
 export const ZEON = {
   ACCENT: "#A20000",      // Zeon crimson
