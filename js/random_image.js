@@ -86,8 +86,9 @@ app.registerExtension({
             const seedW = node.widgets?.find((x) => x.name === "random_seed");
             const exclW = node.widgets?.find((x) => x.name === "exclude_selected");
             const resetW = node.widgets?.find((x) => x.name === "reset_cache");
-            if (!dirW || !seedW) return;
+            if (!dirW) return;
             if (exclW) collapse(exclW);
+            if (resetW) collapse(resetW);  // ♻ acts via the route; the widget stays hidden
 
             // ── root: image_saver geometry law ──────────────────────────
             const el = document.createElement("div");
@@ -125,20 +126,17 @@ app.registerExtension({
             if (!exclW) chip.style.display = "none";
             chipsWrap.appendChild(chip);
 
-            // toolbar — the rebuild's whole point
+            // toolbar — ♻ clears the cache NOW via the server route (v0.16.1:
+            // Boss's design). 🎲 Roll again is GONE: he wires the global seed
+            // into random_seed, so the pick already changes every generation.
             const bar = document.createElement("div");
             bar.className = "zeon-ri-toolbar";
-            const roll = document.createElement("button");
-            roll.type = "button";
-            roll.className = "zeon-ri-tool";
-            roll.textContent = "🎲 Roll again";
-            roll.title = "Shuffle the seed so the next run picks a different image.";
             const rst = document.createElement("button");
             rst.type = "button";
             rst.className = "zeon-ri-tool";
             rst.textContent = "♻ Reset cache";
-            rst.title = "Forget the already-picked history on the next run.";
-            bar.append(roll, rst);
+            rst.title = "Forget the already-picked history immediately.";
+            bar.append(rst);
 
             el.append(row, stats, chipsWrap, bar);
 
@@ -226,14 +224,24 @@ app.registerExtension({
                 refreshStats();
             });
 
-            roll.addEventListener("click", () => {
-                seedW.value = Math.floor(Math.random() * 0xffffffff);
-                flash(`seed → ${seedW.value}`);
-            });
-
-            rst.addEventListener("click", () => {
-                if (resetW) resetW.value = true;
-                flash("cache clears on the next run");
+            // ♻ — immediate cache delete via the server route (v0.16.1).
+            // The reset_cache widget/input is legacy compat only.
+            rst.addEventListener("click", async () => {
+                const p = String(dirW.value || "").trim();
+                if (!p) { flash("point at a folder first"); return; }
+                rst.disabled = true;
+                let res = {};
+                try {
+                    res = await (await fetch(`/zeonmkii/api/random_image/reset?path=${encodeURIComponent(p)}`)).json();
+                } catch (_e) { res = {}; }
+                rst.disabled = false;
+                if (res.ok) {
+                    flash("cache cleared ✓");
+                    if (resetW) resetW.value = false;
+                    refreshStats();
+                } else {
+                    flash("reset failed — try again");
+                }
             });
 
             const origConfigure = node.onConfigure;
@@ -252,14 +260,13 @@ app.registerExtension({
     },
 });
 
-// momentary ♻ + post-run stats refresh — ONE module-level listener
-// (timer's event pattern). Walks top-level graph nodes; subgraph members
-// keep manual ♻ behavior (v1 scope note).
+// post-run stats refresh — ONE module-level listener (timer's event
+// pattern). ♻ no longer needs the momentary flip: it deletes via the
+// route and never touches the boolean. Walks top-level graph nodes;
+// subgraph members refresh on their next configure (v1 scope note).
 api.addEventListener("execution_success", () => {
     for (const n of app.graph?._nodes || []) {
         if (!n || n.comfyClass !== NODE_CLASS) continue;
-        const rw = n.widgets?.find((w) => w.name === "reset_cache");
-        if (rw && rw.value === true) rw.value = false;
         n._zeonRiRefresh?.();
     }
 });

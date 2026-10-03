@@ -51,3 +51,22 @@ async def api_zeon_random_stats(request):
         except (json.JSONDecodeError, OSError, TypeError, ValueError):
             picked = 0
     return web.json_response({"ok": True, "total": len(names), "picked": picked})
+
+
+@PromptServer.instance.routes.get("/zeonmkii/api/random_image/reset")
+async def api_zeon_random_reset(request):
+    """Delete the folder's no-repeat cache file IMMEDIATELY (Boss's design,
+    v0.16.1: the ♻ button acts NOW — no sticky boolean ride-along). Same
+    folder-guard trust model as stats."""
+    path = request.query.get("path", "")
+    if not path or not prescreen(path) or not folder_allowed(path):
+        return web.json_response({"ok": False, "reason": "unapproved"})
+    if not os.path.isdir(path):
+        return web.json_response({"ok": False, "reason": "missing"})
+    cache_file = os.path.join(path, CACHE_NAME)
+    try:
+        if os.path.exists(cache_file):
+            os.remove(cache_file)
+    except OSError:
+        return web.json_response({"ok": False, "reason": "unreadable"})
+    return web.json_response({"ok": True})
