@@ -188,8 +188,31 @@ function walkZeonNodes(graph, fn) {
 
 app.registerExtension({
   name: "ComfyUI-ZeonmkII-Nodes.Skin",
+  setup() {
+    console.info("[zeonmkii] skin online v0.15.5");
+  },
   nodeCreated(node) {
-    if (ZEON_CLASSES.has(node.comfyClass)) applyNodeSkin(node);
+    if (!ZEON_CLASSES.has(node.comfyClass)) return;
+    applyNodeSkin(node);
+    // Post-creation re-assert (v0.15.5): a frontend pass reapplies default
+    // node colors AFTER nodeCreated on some nodes (observed on Resolution:
+    // paint applied, then reset to palette defaults with no pack code
+    // involved — hex absent from repo and history). Repaint on the next
+    // frames/ticks and REPORT any fight, so the console tells us the
+    // clobberer's timing instead of us guessing.
+    const reassert = (when) => () => {
+      if (!node.graph) return; // node was deleted meanwhile
+      if (node.color !== ZEON.ACCENT || node.bgcolor !== ZEON.BODY) {
+        console.warn(
+          `[zeonmkii] skin re-asserted on ${node.comfyClass} at +${when} ` +
+          `(was color=${node.color} bg=${node.bgcolor})`
+        );
+        applyNodeSkin(node);
+      }
+    };
+    requestAnimationFrame(reassert("frame"));
+    setTimeout(reassert("250ms"), 250);
+    setTimeout(reassert("1s"), 1000);
   },
   onGraphConfigured() {
     walkZeonNodes(app.graph, applyNodeSkin);
