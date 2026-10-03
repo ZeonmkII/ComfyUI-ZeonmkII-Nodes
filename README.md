@@ -94,4 +94,12 @@ Each slot has: `enabled`, `lora`, `trigger`, `strength_model`, `strength_clip`.
 
 MIT © 2026 ZeonmkII
 
-Portions vendored from [comfy-image-saver](https://github.com/girishgopaul/comfy-image-saver) (MIT © 2023 Girish Gopaul) and techniques ported from ComfyUI-Pixaroma (MIT © 2026 pixaroma).
+This pack builds on two MIT-licensed projects — their full license texts are
+reproduced in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md):
+
+- The **LoRAs Loader** node (Python + front-end) is a port of the LoRA Loader
+  from [ComfyUI-Pixaroma](https://gitlab.com/pixaroma/ComfyUI-Pixaroma)
+  (MIT © 2026 pixaroma) — rebranded, trimmed, and restyled for ZeonmkII.
+- The image-saver core (`nodes/saver_lib/`) is vendored verbatim from
+  [comfy-image-saver](https://github.com/girishgopaul/comfy-image-saver)
+  (MIT © 2023 Girish Gopaul), so its behavior matches upstream exactly.
