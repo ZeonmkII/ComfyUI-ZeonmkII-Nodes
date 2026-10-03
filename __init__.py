@@ -1,7 +1,7 @@
 """
 @author: ZeonmkII
 @title: ComfyUI-ZeonmkII-Nodes
-@version: 0.15.5
+@version: 0.16.0
 @project: https://github.com/ZeonmkII/ComfyUI-ZeonmkII-Nodes
 @description: Utility-layer nodes for ComfyUI — character swapping, prompt
 tooling, timers, Krea 2 resolution presets, native-parity
@@ -35,6 +35,11 @@ try:
     from .nodes import _lora_routes  # noqa: F401 - registers the LoRA Loader API routes
 except Exception as _e:
     print(f"[ZeonmkII] lora loader routes not registered: {_e}")
+
+try:
+    from .nodes import _random_image_routes  # noqa: F401 - registers the Random Image stats route
+except Exception as _e:
+    print(f"[ZeonmkII] random image stats route not registered: {_e}")
 
 NODE_CLASS_MAPPINGS = {
     "ZeonmkII Character Swap": ZeonmkIICharacterSwap,
