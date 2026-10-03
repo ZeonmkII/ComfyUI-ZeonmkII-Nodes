@@ -9,6 +9,8 @@
  * with scoped classes + a stylesheet appended to document.head once.
  */
 
+import { app } from "../../scripts/app.js";
+
 export const ZEON = {
   ACCENT: "#A20000",      // Zeon crimson
   ACCENT_DIM: "#750000",
@@ -155,3 +157,41 @@ export function applyNodeSkin(node) {
   node.color = ZEON.ACCENT;
   node.bgcolor = ZEON.BODY;
 }
+
+// ── Pack-wide skin enforcement ─────────────────────────────────────────
+// LiteGraph serializes node.color/bgcolor INTO saved workflows and reapplies
+// them when a graph is configured — AFTER every nodeCreated hook has run. So
+// nodes loaded from an older workflow arrived wearing their baked colors
+// (navy body, old/default title), silently clobbering the paint. This
+// extension re-asserts the pack skin once configuration is done, so every
+// ZeonmkII node is blood-red / near-black on EVERY load, saved workflows
+// included. Manual recolors of our nodes do not survive a reload — the pack
+// is uniform by design.
+
+const ZEON_CLASSES = new Set([
+  "ZeonmkII Character Swap",
+  "ZeonmkII LoRAs Loader",
+  "ZeonmkII Random Image",
+  "ZeonmkII Resolution",
+  "ZeonmkII Run Timer",
+  "ZeonmkII Save Image",
+]);
+
+function walkZeonNodes(graph, fn) {
+  if (!graph) return;
+  for (const n of graph._nodes || graph.nodes || []) {
+    if (!n) continue;
+    if (ZEON_CLASSES.has(n.comfyClass)) fn(n);
+    if (n.subgraph) walkZeonNodes(n.subgraph, fn);  // subgraph nodes too
+  }
+}
+
+app.registerExtension({
+  name: "ComfyUI-ZeonmkII-Nodes.Skin",
+  nodeCreated(node) {
+    if (ZEON_CLASSES.has(node.comfyClass)) applyNodeSkin(node);
+  },
+  onGraphConfigured() {
+    walkZeonNodes(app.graph, applyNodeSkin);
+  },
+});
