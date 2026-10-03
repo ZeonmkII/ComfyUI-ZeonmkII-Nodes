@@ -23,7 +23,7 @@ import { app } from "/scripts/app.js";
 import { api } from "/scripts/api.js";
 import { ensureStyles, applyNodeSkin } from "./zeonmkii_skin.js";
 
-const NODE_CLASS = "ZeonmkII Random Image";
+const NODE_CLASS = "Load Random Image ZeonmkII";
 const STYLE_ID = "zeonmkii-random-image-css";
 
 function injectCSS() {
@@ -255,7 +255,7 @@ app.registerExtension({
             refreshStats();
             try { node.setSize([300, 218]); } catch (_e) { /* cosmetic */ }
         } catch (err) {
-            console.error("[ZeonmkII Random Image] setup error:", err);
+            console.error("[Load Random Image ZeonmkII] setup error:", err);
         }
     },
 });

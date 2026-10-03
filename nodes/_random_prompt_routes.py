@@ -1,5 +1,5 @@
 """
-ZeonmkII Random Prompt — stats + cache-reset routes.
+Load Random Prompt ZeonmkII — stats + cache-reset routes.
 
 Read-only companions to the node's tracking cache, mirroring the Random
 Image routes' trust model: ComfyUI roots are always fine; any OTHER path

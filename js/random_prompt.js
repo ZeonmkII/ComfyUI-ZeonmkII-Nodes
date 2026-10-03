@@ -21,7 +21,7 @@ import { app } from "/scripts/app.js";
 import { api } from "/scripts/api.js";
 import { ensureStyles, applyNodeSkin } from "./zeonmkii_skin.js";
 
-const NODE_CLASS = "ZeonmkII Random Prompt";
+const NODE_CLASS = "Load Random Prompt ZeonmkII";
 const STYLE_ID = "zeonmkii-random-prompt-css";
 
 function injectCSS() {
@@ -271,7 +271,7 @@ app.registerExtension({
             syncAll();
             try { node.setSize([300, 246]); } catch (_e) { /* cosmetic */ }
         } catch (err) {
-            console.error("[ZeonmkII Random Prompt] setup error:", err);
+            console.error("[Load Random Prompt ZeonmkII] setup error:", err);
         }
     },
 });

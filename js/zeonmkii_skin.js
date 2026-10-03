@@ -171,8 +171,8 @@ export function applyNodeSkin(node) {
 const ZEON_CLASSES = new Set([
   "ZeonmkII Character Swap",
   "ZeonmkII LoRAs Loader",
-  "ZeonmkII Random Image",
-  "ZeonmkII Random Prompt",
+  "Load Random Image ZeonmkII",
+  "Load Random Prompt ZeonmkII",
   "ZeonmkII Resolution",
   "ZeonmkII Run Timer",
   "ZeonmkII Save Image",

@@ -1,5 +1,5 @@
 """
-ZeonmkII Random Image — loads a random image from a directory.
+Load Random Image ZeonmkII — loads a random image from a directory.
 
 Same function as the classic LoadRandomImageFromDirectory node, wearing the
 pack's skin: point it at a folder, it picks one image (seeded, so sheets

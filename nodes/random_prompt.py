@@ -1,5 +1,5 @@
 """
-ZeonmkII Random Prompt — loads prompts from a file or folder.
+Load Random Prompt ZeonmkII — loads prompts from a file or folder.
 
 Port of Boss's classic random_prompt_loader_v3 (NAS custom_nodes), wearing
 the pack's skin and conventions. Three selection modes:
@@ -158,11 +158,4 @@ class ZeonmkIIRandomPrompt:
 
         raise Exception(f"Unknown mode: {mode}")
 
-
-NODE_CLASS_MAPPINGS = {
-    "ZeonmkII Random Prompt": ZeonmkIIRandomPrompt,
-}
-
-NODE_DISPLAY_NAME_MAPPINGS = {
-    "ZeonmkII Random Prompt": "🎲 Load Random Prompt ZeonmkII",
-}
+# Registry mappings live in __init__.py — the pack's single source of truth.

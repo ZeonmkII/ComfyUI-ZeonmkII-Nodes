@@ -1,5 +1,5 @@
 """
-ZeonmkII Random Image — stats route.
+Load Random Image ZeonmkII — stats route.
 
 Read-only companion to the node's no-repeat cache: the UI's live band asks
 "how many images / how many already picked / how many left" without running
