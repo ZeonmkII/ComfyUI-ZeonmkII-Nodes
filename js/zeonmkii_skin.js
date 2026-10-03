@@ -172,6 +172,7 @@ const ZEON_CLASSES = new Set([
   "ZeonmkII Character Swap",
   "ZeonmkII LoRAs Loader",
   "ZeonmkII Random Image",
+  "ZeonmkII Random Prompt",
   "ZeonmkII Resolution",
   "ZeonmkII Run Timer",
   "ZeonmkII Save Image",

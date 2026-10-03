@@ -1,7 +1,7 @@
 """
 @author: ZeonmkII
 @title: ComfyUI-ZeonmkII-Nodes
-@version: 0.16.1
+@version: 0.17.0
 @project: https://github.com/ZeonmkII/ComfyUI-ZeonmkII-Nodes
 @description: Utility-layer nodes for ComfyUI — character swapping, prompt
 tooling, timers, Krea 2 resolution presets, native-parity
@@ -23,6 +23,7 @@ from .nodes.character_swap import ZeonmkIICharacterSwap
 from .nodes.image_saver import ZeonmkIISaveImage
 from .nodes.lora_loader import ZeonmkIILoRAsLoader
 from .nodes.random_image import ZeonmkIIRandomImage
+from .nodes.random_prompt import ZeonmkIIRandomPrompt
 from .nodes.resolution import ZeonmkIIResolution
 from .nodes.run_timer import ZeonmkIIRunTimer
 
@@ -41,10 +42,16 @@ try:
 except Exception as _e:
     print(f"[ZeonmkII] random image stats route not registered: {_e}")
 
+try:
+    from .nodes import _random_prompt_routes  # noqa: F401 - registers the Random Prompt stats/reset routes
+except Exception as _e:
+    print(f"[ZeonmkII] random prompt routes not registered: {_e}")
+
 NODE_CLASS_MAPPINGS = {
     "ZeonmkII Character Swap": ZeonmkIICharacterSwap,
     "ZeonmkII LoRAs Loader": ZeonmkIILoRAsLoader,
     "ZeonmkII Random Image": ZeonmkIIRandomImage,
+    "ZeonmkII Random Prompt": ZeonmkIIRandomPrompt,
     "ZeonmkII Resolution": ZeonmkIIResolution,
     "ZeonmkII Run Timer": ZeonmkIIRunTimer,
     "ZeonmkII Save Image": ZeonmkIISaveImage,
@@ -55,7 +62,8 @@ NODE_CLASS_MAPPINGS = {
 NODE_DISPLAY_NAME_MAPPINGS = {
     "ZeonmkII Character Swap": "🌀 Character Swap ZeonmkII",
     "ZeonmkII LoRAs Loader": "🔗 LoRAs Loader ZeonmkII",
-    "ZeonmkII Random Image": "🎲 Random Image ZeonmkII",
+    "ZeonmkII Random Image": "🎲 Load Random Image ZeonmkII",
+    "ZeonmkII Random Prompt": "🎲 Load Random Prompt ZeonmkII",
     "ZeonmkII Resolution": "📐 Resolution ZeonmkII",
     "ZeonmkII Run Timer": "⏱ Run Timer ZeonmkII",
     "ZeonmkII Save Image": "💾 Save Image ZeonmkII",

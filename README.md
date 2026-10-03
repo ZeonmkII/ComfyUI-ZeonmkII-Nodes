@@ -8,7 +8,8 @@ Custom nodes for [ComfyUI](https://github.com/comfyanonymous/ComfyUI) by ZeonmkI
 |---|---|
 | 🌀 **Character Swap** | LoRA-backed character switching — swap a prompt token for a character's trigger word, up to 8 slots, manual or random. |
 | 🔗 **LoRAs Loader** | Stack many LoRAs in one node — Pixaroma-style rows with eye toggles, memory modes, Civitai info, and trigger auto-tick. |
-| 🎲 **Random Image** | Pick a random image from a folder — native OS folder browse, live picked/left stats band, no-repeat cache with auto-reshuffle, seeded for reproducible sheets. |
+| 🎲 **Load Random Image** | Pick a random image from a folder — native OS folder browse, live picked/left stats band, no-repeat cache with auto-reshuffle, seeded for reproducible sheets. |
+| 🎲 **Load Random Prompt** | Pick a prompt from a text file or folder of .txt files — random / tracked-random / sequential modes, live used/left stats, instant cache reset, seeded. Ported from the classic Random Prompt Loader v3. |
 | 📐 **Resolution** | Krea-2-style resolution presets as horizontal chip rows — orientation, ratio families, base sizes, live pixel readout. |
 | ⏱ **Run Timer** | Wall-clock run timer with running / done / error states, CRT-style digits. |
 | 💾 **Save Image** | Full [comfy-image-saver](https://github.com/girishgopaul/comfy-image-saver) parity — every field a native, hand-editable widget — plus a native OS folder-browse dialog and live filename preview. |
