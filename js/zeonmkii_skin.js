@@ -10,13 +10,13 @@
  */
 
 export const ZEON = {
-  ACCENT: "#e5484d",      // Zeon crimson
-  ACCENT_DIM: "#b83a3e",
-  BODY: "#1f2226",        // node body
-  PANEL: "#2a2e34",       // raised areas
+  ACCENT: "#ff2b3a",      // Zeon crimson
+  ACCENT_DIM: "#b31e28",
+  BODY: "#121316",        // node body
+  PANEL: "#1a1c20",       // raised areas
   TEXT: "#e8e6e3",
   // per-slot identity colors, 8 slots
-  SLOT_HUES: ["#e5484d", "#e88b3a", "#d8b13a", "#5fbf6e", "#4fb8d8", "#7a7af0", "#c76ad0", "#e06a9a"],
+  SLOT_HUES: ["#ff2b3a", "#e88b3a", "#d8b13a", "#5fbf6e", "#4fb8d8", "#7a7af0", "#c76ad0", "#e06a9a"],
 };
 
 const STYLE_ID = "zeonmkii-skin-styles";
@@ -66,7 +66,7 @@ export function ensureStyles() {
   50% { text-shadow: 0 0 30px rgba(229, 72, 77, 0.7); }
 }
 .zeon-clock.status-done { color: #ffffff; text-shadow: none; }
-.zeon-clock.status-error { color: #e5484d; text-shadow: 0 0 14px rgba(228, 72, 77, 0.5); }
+.zeon-clock.status-error { color: #ff2b3a; text-shadow: 0 0 14px rgba(255, 43, 58, 0.5); }
 .zeon-note { padding: 2px 10px 8px 10px; font-size: 12px; line-height: 1.5; color: ${ZEON.TEXT}; overflow-wrap: anywhere; }
 .zeon-note h1, .zeon-note h2, .zeon-note h3 { color: #ffffff; margin: 6px 0 3px 0; line-height: 1.25; }
 .zeon-note h1 { font-size: 15px; }
@@ -80,13 +80,13 @@ export function ensureStyles() {
 .zeon-note a:hover { text-decoration: underline; }
 .zeon-note hr { border: none; border-top: 1px dashed ${ZEON.ACCENT_DIM}; margin: 6px 0; }
 .zeon-note-table { border-collapse: collapse; margin: 5px 0; }
-.zeon-note-table th { background: ${ZEON.PANEL}; color: #ffffff; text-align: left; padding: 2px 8px; border: 1px solid #3a3f46; font-size: 11px; }
-.zeon-note-table td { padding: 2px 8px; border: 1px solid #3a3f46; }
+.zeon-note-table th { background: ${ZEON.PANEL}; color: #ffffff; text-align: left; padding: 2px 8px; border: 1px solid #232529; font-size: 11px; }
+.zeon-note-table td { padding: 2px 8px; border: 1px solid #232529; }
 .zeon-note-empty { color: #9aa0a6; font-style: italic; }
 .zeon-rowlabel { font-size: 9px; color: #9aa0a6; letter-spacing: 1.2px; padding: 3px 0 0 2px; }
 .zeon-chiprow { display: flex; flex-wrap: wrap; gap: 4px; padding: 2px 0 4px 0; }
 .zeon-chip {
-  padding: 3px 8px; border: 1px solid #3a3f46; border-radius: 10px;
+  padding: 3px 8px; border: 1px solid #232529; border-radius: 10px;
   background: ${ZEON.PANEL}; color: ${ZEON.TEXT}; font-size: 11px; cursor: pointer;
   user-select: none; white-space: nowrap;
 }

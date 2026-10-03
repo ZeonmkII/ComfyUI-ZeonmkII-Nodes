@@ -83,7 +83,7 @@ export function injectCSS() {
   const s = document.createElement("style");
   s.id = "z-ll-css";
   s.textContent = `
-    .z-ll-root { width:100%; box-sizing:border-box; background:#1d1d1d; border-radius:4px;
+    .z-ll-root { width:100%; box-sizing:border-box; background:#141414; border-radius:4px;
       color:#ddd; font-family:ui-sans-serif,system-ui,sans-serif; font-size:11px; position:relative; }
     /* Plain block flow (NOT flex, NOT absolute) so the list can never be squeezed
        (Sizes Pattern #4). Each child takes its natural height. */
@@ -128,23 +128,23 @@ export function injectCSS() {
     .z-ll-row.off { opacity:.42; }
 
     .z-ll-name { flex:1; min-width:0; height:24px; display:flex; align-items:center; gap:5px;
-      background:#161616; border:1px solid #3a3a3a; border-radius:5px; padding:0 8px;
+      background:#101010; border:1px solid #262626; border-radius:5px; padding:0 8px;
       font:11px monospace; color:#ddd; cursor:pointer; overflow:hidden; }
     .z-ll-name:hover { border-color:var(--acc,${BRAND}); }
     .z-ll-name .nm { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .z-ll-name.empty .nm { color:#777; }
-    .z-ll-name.missing .nm { color:#e05555; }
-    .z-ll-name.missing::before { content:"⚠"; flex:none; color:#e05555; font-size:11px; }
+    .z-ll-name.missing .nm { color:#ff5555; }
+    .z-ll-name.missing::before { content:"⚠"; flex:none; color:#ff5555; font-size:11px; }
     .z-ll-name .car { flex:none; color:#777; font-size:9px; }
 
     .z-ll-w { flex:0 0 auto; display:flex; align-items:center; height:24px; width:56px;
-      background:#161616; border:1px solid #3a3a3a; border-radius:5px; overflow:hidden; }
+      background:#101010; border:1px solid #262626; border-radius:5px; overflow:hidden; }
     .z-ll-w:focus-within { border-color:var(--acc,${BRAND}); }
     .z-ll-wval { flex:1; min-width:0; width:100%; background:transparent; border:0; outline:none;
       color:#fff; text-align:center; font:11px monospace; padding:0; }
     .z-ll-wval::-webkit-outer-spin-button,.z-ll-wval::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
     .z-ll-wspin { flex:0 0 auto; display:flex; flex-direction:column; width:15px; height:100%;
-      border-left:1px solid #3a3a3a; }
+      border-left:1px solid #262626; }
     .z-ll-wbtn { flex:1; border:0; background:transparent; color:#9a9a9a; cursor:pointer;
       font-size:7px; line-height:1; display:flex; align-items:center; justify-content:center; padding:0; }
     .z-ll-wbtn:hover { color:var(--acc,${BRAND}); background:rgba(255,255,255,0.06); }
@@ -155,7 +155,7 @@ export function injectCSS() {
       font:italic 12px Georgia,serif; }
     .z-ll-info:hover { border-color:var(--acc,${BRAND}); color:#fff; }
 
-    .z-ll-sw { flex:0 0 auto; width:30px; height:16px; border-radius:99px; background:#3a3a3a;
+    .z-ll-sw { flex:0 0 auto; width:30px; height:16px; border-radius:99px; background:#262626;
       position:relative; cursor:pointer; border:1px solid #000; }
     .z-ll-sw::after { content:""; position:absolute; top:1px; left:1px; width:12px; height:12px;
       border-radius:50%; background:#8a8a8a; transition:left .14s, background .14s; }
@@ -164,7 +164,7 @@ export function injectCSS() {
 
     .z-ll-empty { box-sizing:border-box; height:${EMPTY_H}px;
       display:flex; align-items:center; justify-content:center; text-align:center; color:#777;
-      font-size:11px; background:rgba(0,0,0,0.2); border:1px dashed #3a3a3a; border-radius:6px; padding:0 10px; }
+      font-size:11px; background:rgba(0,0,0,0.2); border:1px dashed #262626; border-radius:6px; padding:0 10px; }
   `;
   document.head.appendChild(s);
 }

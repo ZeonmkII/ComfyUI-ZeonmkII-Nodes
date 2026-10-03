@@ -28,7 +28,7 @@ function injectCSS() {
   s.id = "z-llp-css";
   s.textContent = `
     .z-llp { position:fixed; z-index:10010; width:290px; max-width:94vw; background:#1a1a1a;
-      border:1px solid #4a4a4a; border-radius:10px; box-shadow:0 18px 50px rgba(0,0,0,0.6);
+      border:1px solid #303030; border-radius:10px; box-shadow:0 18px 50px rgba(0,0,0,0.6);
       color:#d8d8d8; font:12px 'Segoe UI',system-ui,sans-serif; overflow:hidden; }
     .z-llp-t { display:flex; align-items:center; gap:8px; padding:10px 12px; background:#232323;
       border-bottom:1px solid #333; cursor:grab; user-select:none; color:var(--acc,${BRAND}); }
@@ -38,27 +38,27 @@ function injectCSS() {
     .z-llp-row { display:flex; align-items:center; gap:10px; }
     .z-llp-row .lab { flex:1; color:#c2c2c2; }
     .z-llp-row .hint { display:block; font-size:10px; color:#7a7a7a; margin-top:1px; }
-    .z-llp-num { width:66px; box-sizing:border-box; background:#161616; border:1px solid #4a4a4a;
+    .z-llp-num { width:66px; box-sizing:border-box; background:#101010; border:1px solid #303030;
       border-radius:6px; color:#fff; text-align:center; font:12px monospace; padding:6px 4px; outline:none; }
     .z-llp-num:focus { border-color:var(--acc,${BRAND}); }
-    .z-llp-txt { width:70px; box-sizing:border-box; background:#161616; border:1px solid #4a4a4a;
+    .z-llp-txt { width:70px; box-sizing:border-box; background:#101010; border:1px solid #303030;
       border-radius:6px; color:#fff; text-align:center; font:12px monospace; padding:6px 4px; outline:none; }
     .z-llp-txt:focus { border-color:var(--acc,${BRAND}); }
-    .z-llp-sw { flex:0 0 auto; width:34px; height:18px; border-radius:99px; background:#3a3a3a;
+    .z-llp-sw { flex:0 0 auto; width:34px; height:18px; border-radius:99px; background:#262626;
       position:relative; cursor:pointer; border:1px solid #000; }
     .z-llp-sw::after { content:""; position:absolute; top:1px; left:1px; width:14px; height:14px;
       border-radius:50%; background:#8a8a8a; transition:left .14s, background .14s; }
     .z-llp-sw.on { background:var(--acc,${BRAND}); } .z-llp-sw.on::after { left:17px; background:#fff; }
     .z-llp-swatch { width:30px; height:22px; border-radius:5px; border:1px solid #555; cursor:pointer; flex:0 0 auto; }
     .z-llp-swatch:hover { border-color:#fff; }
-    .z-llp-seg { flex:0 0 auto; display:flex; background:rgba(0,0,0,0.25); border:1px solid #444;
+    .z-llp-seg { flex:0 0 auto; display:flex; background:rgba(0,0,0,0.25); border:1px solid #2a2a2a;
       border-radius:6px; overflow:hidden; }
     .z-llp-segb { padding:5px 9px; font:11px 'Segoe UI',sans-serif; color:#aaa; cursor:pointer;
       user-select:none; }
     .z-llp-segb:hover { color:#ddd; background:rgba(255,255,255,0.08); }
     .z-llp-segb.on { background:var(--acc,${BRAND}); color:#fff; }
     .z-llp-f { display:flex; gap:8px; padding:10px 12px; border-top:1px solid #333; background:#1f1f1f; }
-    .z-llp-btn { border:1px solid #444; background:rgba(255,255,255,0.04); color:#d8d8d8; border-radius:5px;
+    .z-llp-btn { border:1px solid #2a2a2a; background:rgba(255,255,255,0.04); color:#d8d8d8; border-radius:5px;
       padding:6px 12px; font:12px 'Segoe UI',sans-serif; cursor:pointer; }
     .z-llp-btn:hover { border-color:var(--acc,${BRAND}); color:#fff; }
     .z-llp-push { margin-left:auto; }
@@ -68,11 +68,11 @@ function injectCSS() {
       color:var(--acc,${BRAND}); font-size:11px; letter-spacing:.04em; text-transform:uppercase; }
     .z-llp-head .sub { display:block; margin-top:3px; text-transform:none; letter-spacing:0;
       color:#7a7a7a; font-size:10px; line-height:1.4; }
-    .z-llp-key { flex:1; min-width:0; box-sizing:border-box; background:#161616;
-      border:1px solid #4a4a4a; border-radius:6px; color:#fff; font:12px monospace;
+    .z-llp-key { flex:1; min-width:0; box-sizing:border-box; background:#101010;
+      border:1px solid #303030; border-radius:6px; color:#fff; font:12px monospace;
       padding:6px 8px; outline:none; }
     .z-llp-key:focus { border-color:var(--acc,${BRAND}); }
-    .z-llp-mini { flex:0 0 auto; border:1px solid #444; background:rgba(255,255,255,0.04);
+    .z-llp-mini { flex:0 0 auto; border:1px solid #2a2a2a; background:rgba(255,255,255,0.04);
       color:#d8d8d8; border-radius:5px; padding:5px 9px; font:11px 'Segoe UI',sans-serif;
       cursor:pointer; user-select:none; }
     .z-llp-mini:hover { border-color:var(--acc,${BRAND}); color:#fff; }

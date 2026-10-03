@@ -55,7 +55,7 @@ function injectStyles() {
     s.id = STYLE_ID;
     s.textContent = `
 .zeon-save-row { display:flex; gap:6px; align-items:center; }
-.zeon-save-btn { background:#7a1220; border:1px solid #a91d30; color:#ffd9de;
+.zeon-save-btn { background:#7a0e1a; border:1px solid #a91026; color:#ffdfe2;
   font:600 11px system-ui; padding:3px 10px; border-radius:4px; cursor:pointer;
   white-space:nowrap; }
 .zeon-save-btn:hover { background:#9c1a2c; }
@@ -63,10 +63,10 @@ function injectStyles() {
 .zeon-save-msg { color:#c9c9c9; font:11px system-ui; white-space:nowrap;
   overflow:hidden; text-overflow:ellipsis; min-width:0; }
 .zeon-save-chips { display:flex; flex-wrap:wrap; gap:3px; align-items:center; }
-.zeon-save-chip { background:#1c1c1c; border:1px solid #3a3a3a; color:#ddd;
+.zeon-save-chip { background:#131313; border:1px solid #262626; color:#ddd;
   font:10px system-ui; padding:2px 7px; border-radius:9px; cursor:pointer;
   white-space:nowrap; }
-.zeon-save-chip:hover { border-color:#a91d30; color:#ffd9de; }
+.zeon-save-chip:hover { border-color:#a91026; color:#ffdfe2; }
 .zeon-save-prev { color:#8f8f8f; font:11px ui-monospace,monospace;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 `;

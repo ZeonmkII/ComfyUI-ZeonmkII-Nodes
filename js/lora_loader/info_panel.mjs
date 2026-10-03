@@ -80,10 +80,10 @@ function injectCSS() {
   const s = document.createElement("style");
   s.id = "z-ll-info-css";
   s.textContent = `
-    .z-ll-info-p { position:fixed; z-index:10025; width:340px; max-width:94vw; background:#2b2b2b;
+    .z-ll-info-p { position:fixed; z-index:10025; width:340px; max-width:94vw; background:#1b1b1b;
       border:1px solid ${BRAND}; border-radius:10px; box-shadow:0 14px 44px rgba(0,0,0,0.6);
       overflow:hidden; font:12px 'Segoe UI',system-ui,sans-serif; color:#ddd; }
-    .z-ll-info-top { display:flex; gap:11px; padding:12px; border-bottom:1px solid #1c1c1c; cursor:grab; }
+    .z-ll-info-top { display:flex; gap:11px; padding:12px; border-bottom:1px solid #131313; cursor:grab; }
     .z-ll-info-th { width:64px; height:64px; border-radius:7px; flex:none; border:1px solid #000;
       background:radial-gradient(circle at 60% 35%,#4a3a5b,#221a2e 72%); background-size:cover; background-position:center;
       position:relative; overflow:hidden; cursor:pointer; }
@@ -99,7 +99,7 @@ function injectCSS() {
       border-radius:50%; background:rgba(0,0,0,0.7); color:#ddd;
       font:10px/15px 'Segoe UI',system-ui,sans-serif; text-align:center; opacity:0; transition:opacity .12s; }
     .z-ll-info-th:hover .z-ll-thx { opacity:1; }
-    .z-ll-thx:hover { background:#e0604a; color:#fff; }
+    .z-ll-thx:hover { background:#ff2b3a; color:#fff; }
     .z-ll-info-h { min-width:0; flex:1; }
     .z-ll-info-h h3 { margin:0 0 4px; font-size:13.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .z-ll-info-meta { font:10px monospace; color:#7a7a7a; line-height:1.7; }
@@ -112,7 +112,7 @@ function injectCSS() {
     .z-ll-info-sec h4 { margin:0 0 6px; font:600 9.5px 'Segoe UI'; text-transform:uppercase; letter-spacing:.7px;
       color:${BRAND}; display:flex; align-items:center; gap:7px; }
     .z-ll-info-sec h4 .src { margin-left:auto; font:9px 'Segoe UI'; text-transform:none; letter-spacing:0;
-      color:#8a8a8a; border:1px solid #444; border-radius:99px; padding:1px 7px; }
+      color:#8a8a8a; border:1px solid #2a2a2a; border-radius:99px; padding:1px 7px; }
     .z-ll-info-sec h4 .src.net { color:#8fc0ff; border-color:#3a5a80; }
     .z-ll-info-sec h4 .qa { margin-left:8px; font:9.5px 'Segoe UI'; text-transform:none; letter-spacing:0;
       color:#9a9a9a; cursor:pointer; }
@@ -124,18 +124,18 @@ function injectCSS() {
     .z-ll-chip { font:10.5px 'Segoe UI'; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.14);
       color:#b8b8b8; border-radius:99px; padding:3px 9px; cursor:pointer; user-select:none; display:flex; align-items:center; gap:4px; max-width:100%; }
     .z-ll-chip:hover { border-color:var(--acc,${BRAND}); }
-    .z-ll-chip.sel { background:color-mix(in srgb, var(--acc,${BRAND}) 18%, transparent); border-color:var(--acc,${BRAND}); color:#f08c90; }
+    .z-ll-chip.sel { background:color-mix(in srgb, var(--acc,${BRAND}) 18%, transparent); border-color:var(--acc,${BRAND}); color:#ff8a91; }
     .z-ll-chip.sel::before { content:"✓"; font-size:9px; flex:none; }
     .z-ll-chip .ct { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .z-ll-chip-none { color:#777; font-size:11px; }
-    .z-ll-chip .cx { margin-left:1px; color:#f08c90; cursor:pointer; opacity:.6; font-size:10px; flex:none; }
+    .z-ll-chip .cx { margin-left:1px; color:#ff8a91; cursor:pointer; opacity:.6; font-size:10px; flex:none; }
     .z-ll-chip .cx:hover { opacity:1; }
-    .z-ll-srctoggle { margin-left:auto; display:flex; border:1px solid #444; border-radius:99px; overflow:hidden; }
+    .z-ll-srctoggle { margin-left:auto; display:flex; border:1px solid #2a2a2a; border-radius:99px; overflow:hidden; }
     .z-ll-srctoggle .sg { font:9px 'Segoe UI'; text-transform:none; letter-spacing:0; color:#9a9a9a; padding:2px 9px; cursor:pointer; }
     .z-ll-srctoggle .sg:hover { color:#ddd; }
     .z-ll-srctoggle .sg.on { background:${BRAND}; color:#fff; }
     .z-ll-addtrig { display:flex; gap:5px; margin-top:8px; }
-    .z-ll-addtrig input { flex:1; min-width:0; box-sizing:border-box; background:#161616;
+    .z-ll-addtrig input { flex:1; min-width:0; box-sizing:border-box; background:#101010;
       border:1px solid rgba(255,255,255,0.14); border-radius:6px; color:#fff; font:11px 'Segoe UI';
       padding:5px 8px; outline:none; }
     .z-ll-addtrig input:focus { border-color:${BRAND}; }
@@ -154,14 +154,14 @@ function injectCSS() {
     .z-ll-spin { width:11px; height:11px; border:2px solid rgba(255,255,255,.3); border-top-color:#fff;
       border-radius:50%; animation:z-ll-sp 1s linear infinite; }
     @keyframes z-ll-sp { to { transform:rotate(360deg); } }
-    .z-ll-info-foot { display:flex; gap:6px; padding:10px 12px; border-top:1px solid #1c1c1c; background:#242424; }
+    .z-ll-info-foot { display:flex; gap:6px; padding:10px 12px; border-top:1px solid #131313; background:#171717; }
     .z-ll-info-foot .b { flex:1; text-align:center; font-size:11px; padding:7px; border-radius:5px; cursor:pointer; }
     .z-ll-info-foot .b.pri { background:${BRAND}; color:#fff; font-weight:600; }
     .z-ll-info-foot .b.gh { border:1px solid rgba(255,255,255,0.14); color:#b8b8b8; }
     .z-ll-info-foot .b.gh:hover { border-color:${BRAND}; color:#fff; }
     .z-ll-info-foot .b.dis { opacity:.4; pointer-events:none; }
     .z-ll-info-foot .b.del { flex:0 0 auto; min-width:38px; border:1px solid rgba(255,255,255,0.14); color:#c9736a; }
-    .z-ll-info-foot .b.del:hover { border-color:#e0604a; color:#fff; background:rgba(224,96,74,0.12); }
+    .z-ll-info-foot .b.del:hover { border-color:#ff2b3a; color:#fff; background:rgba(255,43,58,0.12); }
   `;
   document.head.appendChild(s);
 }
@@ -453,7 +453,7 @@ export async function openInfoPanel(node, id, refresh) {
           const ctx = c.getContext("2d");
           // A jpeg carries no transparency, so a png with alpha would come out on
           // BLACK. Paint the panel's own dark background under it instead.
-          ctx.fillStyle = "#1d1d1d";
+          ctx.fillStyle = "#141414";
           ctx.fillRect(0, 0, w, h);
           ctx.drawImage(img, 0, 0, w, h);
           resolve(c.toDataURL("image/jpeg", 0.9));
