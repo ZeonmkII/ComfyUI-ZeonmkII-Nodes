@@ -9,7 +9,8 @@ import { injectCSS, buildRoot, renderBody, measureContentHeight, closePopupIfOwn
 import { buildGridPreview } from "./grid.mjs";
 import { applyAdaptiveCanvasOnly, isVueNodes, installCanvasZoomPassthrough } from "../shared/index.mjs";
 import { sweepProviderFor, anyProviderOwns } from "../shared/sweep_targets.mjs";
-import "../lora_loader/sweep.mjs";  // registers the loader's sweep provider
+import "../lora_loader/sweep.mjs";
+import "../character_swap/sweep.mjs";  // registers the Character Swap sweep provider  // registers the loader's sweep provider
 import { isGraphLoading } from "../shared/graph_loading.mjs";
 
 const NODE = "ZeonmkII XY Plot";
