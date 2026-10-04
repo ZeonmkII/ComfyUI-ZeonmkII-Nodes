@@ -12,7 +12,7 @@ import { sweepProviderFor, anyProviderOwns } from "../shared/sweep_targets.mjs";
 import "../lora_loader/sweep.mjs";  // registers the loader's sweep provider
 import { isGraphLoading } from "../shared/graph_loading.mjs";
 
-const NODE = "ZeonmkIIXYPlot";
+const NODE = "ZeonmkII XY Plot";
 // MIN_W is set so the 3 natural-width toggles (Lock seed / Draw labels / Save
 // cells) always fit on one row without stretching or wrapping.
 const DEFAULT_W = 440, DEFAULT_H = 560;
