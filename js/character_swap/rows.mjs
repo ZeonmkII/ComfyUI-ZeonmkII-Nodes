@@ -61,6 +61,8 @@ export function injectRowsCSS() {
 
     /* ── config strip: chars · pick · rand ───────────────────────────────── */
     .z-cs-cfg { display:flex; align-items:center; gap:6px; height:${CFG_H}px; }
+    .z-cs-cfg > * { flex:0 0 auto; }
+    .z-cs-g { display:flex; align-items:center; gap:5px; height:24px; }
     .z-cs-lab { flex:0 0 auto; font:9px 'Segoe UI',sans-serif; color:#8a8a8a;
       letter-spacing:.6px; text-transform:uppercase; }
     .z-cs-cfg .dim { opacity:.38; }
@@ -149,7 +151,13 @@ export function ensureRoot(node) {
 // rmax; the delegated handler in interact.mjs maps it to the native widget.
 function nbox(node, key, label, nativeName, title, dim) {
   const wrap = document.createElement("div");
-  wrap.className = dim ? "dim" : "";
+  wrap.className = "z-cs-g" + (dim ? " dim" : "");
+  if (label) {
+    const lab = document.createElement("div");
+    lab.className = "z-cs-lab";
+    lab.textContent = label;
+    wrap.appendChild(lab);
+  }
   const box = document.createElement("div");
   box.className = "z-cs-nb";
   const w = findWidget(node, nativeName);
@@ -178,12 +186,6 @@ function nbox(node, key, label, nativeName, title, dim) {
   spin.append(mk("ninc", "▲"), mk("ndec", "▼"));
   box.append(val, spin);
   wrap.appendChild(box);
-  if (label) {
-    const lab = document.createElement("div");
-    lab.className = "z-cs-lab";
-    lab.textContent = label;
-    wrap.prepend(lab);
-  }
   return wrap;
 }
 
@@ -236,10 +238,7 @@ export function renderRows(node) {
     nbox(node, "pick", "pick", "selection", "Manual mode: which character (1-based)", mode === "random"),
   );
   const randWrap = document.createElement("div");
-  randWrap.className = mode === "manual" ? "dim" : "";
-  randWrap.style.display = "flex";
-  randWrap.style.alignItems = "center";
-  randWrap.style.gap = "6px";
+  randWrap.className = "z-cs-g" + (mode === "manual" ? " dim" : "");
   const rl = document.createElement("div");
   rl.className = "z-cs-lab";
   rl.textContent = "rand";
