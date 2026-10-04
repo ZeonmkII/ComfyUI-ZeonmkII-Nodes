@@ -1,12 +1,12 @@
 """
 @author: ZeonmkII
 @title: ComfyUI-ZeonmkII-Nodes
-@version: 0.18.1
+@version: 0.19.0
 @project: https://github.com/ZeonmkII/ComfyUI-ZeonmkII-Nodes
 @description: Utility-layer nodes for ComfyUI — character swapping, prompt
 tooling, timers, Krea 2 resolution presets, native-parity
-image saving, multi-LoRA loading and workflow glue that never touches the
-inference path.
+image saving, multi-LoRA loading, XY comparison grids and workflow glue that never
+touch the inference path.
 Model-agnostic by design: works the same on SDXL, Krea 2, Z-Image and
 whatever ships next.
 """
@@ -22,6 +22,7 @@ __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS", "WEB_DIRECTORY"]
 from .nodes.character_swap import ZeonmkIICharacterSwap
 from .nodes.image_saver import ZeonmkIISaveImage
 from .nodes.lora_loader import ZeonmkIILoRAsLoader
+from .nodes.xy_plot import ZeonmkIIXYPlot
 from .nodes.random_image import ZeonmkIIRandomImage
 from .nodes.random_prompt import ZeonmkIIRandomPrompt
 from .nodes.resolution import ZeonmkIIResolution
@@ -47,9 +48,15 @@ try:
 except Exception as _e:
     print(f"[ZeonmkII] random prompt routes not registered: {_e}")
 
+try:
+    from .nodes import _xy_routes  # noqa: F401 - registers the /zeonmkii/api/xy_plot/* save routes
+except Exception as _e:
+    print(f"[ZeonmkII] xy plot routes not registered: {_e}")
+
 NODE_CLASS_MAPPINGS = {
     "ZeonmkII Character Swap": ZeonmkIICharacterSwap,
     "ZeonmkII LoRAs Loader": ZeonmkIILoRAsLoader,
+    "ZeonmkII XY Plot": ZeonmkIIXYPlot,
     "Load Random Image ZeonmkII": ZeonmkIIRandomImage,
     "Load Random Prompt ZeonmkII": ZeonmkIIRandomPrompt,
     "ZeonmkII Resolution": ZeonmkIIResolution,
@@ -62,6 +69,7 @@ NODE_CLASS_MAPPINGS = {
 NODE_DISPLAY_NAME_MAPPINGS = {
     "ZeonmkII Character Swap": "🌀 Character Swap ZeonmkII",
     "ZeonmkII LoRAs Loader": "🔗 LoRAs Loader ZeonmkII",
+    "ZeonmkII XY Plot": "📊 XY Plot ZeonmkII",
     "Load Random Image ZeonmkII": "🎲 Load Random Image ZeonmkII",
     "Load Random Prompt ZeonmkII": "🎲 Load Random Prompt ZeonmkII",
     "ZeonmkII Resolution": "📐 Resolution ZeonmkII",
