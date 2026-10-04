@@ -3,8 +3,29 @@ from PIL.PngImagePlugin import PngInfo
 from PIL.Image import Image
 
 import json
+import math
 import piexif
 import piexif.helper
+
+
+def _json_safe(obj: Any) -> Any:
+    """Recursively map non-finite floats (NaN / Infinity) to None.
+
+    The prompt dict core hands us carries `is_changed: [NaN]` for any node
+    whose IS_CHANGED returns nan (a common ComfyUI idiom - Pixaroma's XY and
+    Preview nodes do it deliberately). json.dumps writes that as the bare
+    token `NaN`, which strict readers reject: dragging the saved image back
+    into ComfyUI fails its JSON.parse of the embedded workflow, and civitai
+    / metadata parsers choke the same way. Sanitize before serializing
+    (mirror of xy_plot._json_safe, v0.19.6).
+    """
+    if isinstance(obj, float):
+        return obj if math.isfinite(obj) else None
+    if isinstance(obj, dict):
+        return {k: _json_safe(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_json_safe(v) for v in obj]
+    return obj
 
 def save_image(image: Image, filepath: str, extension: str, quality_jpeg_or_webp: int, lossless_webp: bool, optimize_png: bool, a111_params: str, prompt: dict[str, Any] | None, extra_pnginfo: dict[str, Any] | None, embed_workflow: bool) -> None:
     if extension == 'png':
@@ -15,9 +36,9 @@ def save_image(image: Image, filepath: str, extension: str, quality_jpeg_or_webp
         if embed_workflow:
             if extra_pnginfo is not None:
                 for k, v in extra_pnginfo.items():
-                    metadata.add_text(k, json.dumps(v, separators=(',', ':')))
+                    metadata.add_text(k, json.dumps(_json_safe(v), separators=(',', ':')))
             if prompt is not None:
-                metadata.add_text("prompt", json.dumps(prompt, separators=(',', ':')))
+                metadata.add_text("prompt", json.dumps(_json_safe(prompt), separators=(',', ':')))
 
         image.save(filepath, pnginfo=metadata, optimize=optimize_png)
     else: # webp & jpeg
@@ -29,9 +50,9 @@ def save_image(image: Image, filepath: str, extension: str, quality_jpeg_or_webp
         prompt_json = {}
         if embed_workflow:
             if extra_pnginfo is not None:
-                pnginfo_json = {piexif.ImageIFD.Make - i: f"{k}:{json.dumps(v, separators=(',', ':'))}" for i, (k, v) in enumerate(extra_pnginfo.items())}
+                pnginfo_json = {piexif.ImageIFD.Make - i: f"{k}:{json.dumps(_json_safe(v), separators=(',', ':'))}" for i, (k, v) in enumerate(extra_pnginfo.items())}
             if prompt is not None:
-                prompt_json = {piexif.ImageIFD.Model: f"prompt:{json.dumps(prompt, separators=(',', ':'))}"}
+                prompt_json = {piexif.ImageIFD.Model: f"prompt:{json.dumps(_json_safe(prompt), separators=(',', ':'))}"}
 
         def get_exif_bytes() -> bytes:
             exif_dict = ({

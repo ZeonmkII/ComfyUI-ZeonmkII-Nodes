@@ -87,8 +87,9 @@ def save_json(image_info: dict[str, Any] | None, filename: str) -> None:
         workflow = (image_info or {}).get('workflow')
         if workflow is None:
             print('No image info found, skipping saving of JSON')
+        from .saver_lib.saver import _json_safe
         with open(f'{filename}.json', 'w') as workflow_file:
-            json.dump(workflow, workflow_file)
+            json.dump(_json_safe(workflow), workflow_file)
             print(f'Saved workflow to {filename}.json')
     except Exception as e:
         print(f'Failed to save workflow as json due to: {e}, proceeding with the remainder of saving execution')
