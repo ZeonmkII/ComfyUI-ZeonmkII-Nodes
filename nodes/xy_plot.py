@@ -27,6 +27,7 @@ each individual cell) to disk/output.
 import json
 import os
 import threading
+import time
 
 import folder_paths
 import numpy as np
@@ -567,9 +568,16 @@ class ZeonmkIIXYPlot:
     @classmethod
     def IS_CHANGED(cls, **kwargs):
         # Always re-execute: every cell is a distinct run with a different
-        # cursor + (usually) a different upstream image. NaN guarantees no
-        # cache hit ever returns a stale cell. Same pattern as Preview.
-        return float("nan")
+        # cursor + (usually) a different upstream image. A fresh timestamp
+        # guarantees no cache hit ever returns a stale cell.
+        #
+        # NOT float("NaN"): the NaN idiom (used by Pixaroma's original and
+        # Preview Image) serializes as a bare `NaN` token inside the
+        # executing message's "changed" map, and browsers' strict JSON.parse
+        # rejects it - the grid preview died on the WebSocket with
+        # "Unexpected token 'N'" while every cell actually rendered fine.
+        # A float timestamp is always different AND always valid JSON.
+        return time.time()
 
     def execute(self, image, filename_prefix="xy_plot", XYPlotState="{}", prompt=None, extra_pnginfo=None):
         try:
