@@ -458,8 +458,10 @@ class ImageSaver:
             "result": (metadata.final_hashes, metadata.a111_params),
         }
 
-        if show_preview:
-            result["ui"] = {"images": [{"filename": filename, "subfolder": subfolder if subfolder != '.' else '', "type": 'output'} for filename in filenames]}
+        # Boss 22:16 spec: the UI preview always shows (input cut). The old
+        # `if show_preview:` here survived the cut by mistake and NameError'd
+        # the node on every save - caught in the wild Oct 4 during XY tests.
+        result["ui"] = {"images": [{"filename": filename, "subfolder": subfolder if subfolder != '.' else '', "type": 'output'} for filename in filenames]}
 
         return result
 
