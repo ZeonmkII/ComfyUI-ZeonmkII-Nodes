@@ -25,6 +25,7 @@ The accumulator + cell PILs are also reachable by the save routes
 each individual cell) to disk/output.
 """
 import json
+import math
 import os
 import threading
 import time
@@ -505,9 +506,18 @@ def render_session_full(session_id, max_long_side=None):
 # ── metadata helpers (self-contained; the pack has no shared _save_helpers) ──
 
 def _json_safe(obj):
-    """Recursively convert a prompt/workflow structure to JSON-safe types."""
-    if obj is None or isinstance(obj, (str, int, float, bool)):
+    """Recursively convert a prompt/workflow structure to JSON-safe types.
+
+    Non-finite floats (NaN / Infinity) become None: the prompt dict carries
+    `is_changed: [NaN]` for any node whose IS_CHANGED returns nan (Pixaroma's
+    own XY does exactly that), and json.dumps emits the bare token `NaN`,
+    which browsers' strict JSON.parse rejects - killing the panel's event
+    stream (v0.19.5). Mirrors Pixaroma's _save_helpers._json_safe.
+    """
+    if obj is None or isinstance(obj, (str, int, bool)):
         return obj
+    if isinstance(obj, float):
+        return obj if math.isfinite(obj) else None
     if isinstance(obj, (list, tuple)):
         return [_json_safe(v) for v in obj]
     if isinstance(obj, dict):
