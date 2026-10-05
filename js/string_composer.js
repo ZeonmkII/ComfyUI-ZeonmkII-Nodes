@@ -1,12 +1,15 @@
 /**
- * ComfyUI-ZeonmkII-Nodes — String Composer UI (v0.25.3)
+ * ComfyUI-ZeonmkII-Nodes — String Composer UI (v0.25.4)
  *
- * v0.25.3: v0.25.2's hidden "number" widget fought the frontend's widget
- * pass — buttons still dead on canvas, and the ghost widget skewed the
- * toolbar layout on resize. The count now lives in node.properties
- * (LiteGraph serializes properties natively — saved workflows remember it
- * with zero hidden widgets), every refresh forces a canvas repaint
- * (setDirtyCanvas), and the toolbar CSS centers labels + tracks node width.
+ * v0.25.4: the DOM toolbar is GONE. Three takes of dead buttons on Boss's
+ * MAGI frontend (rendered fine, clicks never arrived, zero console trace)
+ * end here: ＋/－ are now native canvas button widgets — LiteGraph draws
+ * and click-handles them on the canvas layer itself, the same layer as
+ * node titles. No DOM element to block, overlap, or skew. serialize:false
+ * keeps them out of widgets_values (the same skip the band has always
+ * used). Buttons sit at the bottom, pinned right above the preview band.
+ * Every step logs with the "[zeonmkii] sc:" prefix — if anything is still
+ * dead, the browser console names the exact broken link.
  *
  * Boss's shape B: one node IS the prompt stack.
  *   - unwired slot → its inline multiline box visible (type the header in)
@@ -20,7 +23,7 @@
  * NOT suppress — canvasOnly excludes from the Vue render).
  */
 import { app } from "/scripts/app.js";
-import { ensureStyles, makeToolbar, makeBand } from "./zeonmkii_skin.js";
+import { makeBand } from "./zeonmkii_skin.js";
 
 const NODE_CLASS = "ZeonmkII String Composer";
 const MIN_SLOTS = 3;
@@ -83,50 +86,55 @@ function slotCount(node) {
 
 app.registerExtension({
     name: "ComfyUI-ZeonmkII-Nodes.StringComposer",
+    setup() {
+        console.info("[zeonmkii] sc: string_composer v0.25.4 online");
+    },
     nodeCreated(node) {
         if (node.comfyClass !== NODE_CLASS) return;
+        console.info("[zeonmkii] sc: node#" + node.id + " widgets=" + (node.widgets || []).map((w) => w.name || w.type).join("|"));
+
+        // v0.25.4: NATIVE canvas button widgets — drawn and click-handled by
+        // LiteGraph on the canvas layer itself. The DOM toolbar rendered fine
+        // on Boss's MAGI frontend but its clicks never arrived (no console
+        // trace, nothing). Canvas buttons have no DOM to block or skew.
+        // serialize:false keeps them out of widgets_values — the same skip
+        // the band has always used, so old workflows map untouched.
+        const plus = node.addWidget("button", "＋ slot", null, () => {
+            const before = slotCount(node);
+            node.properties.zeon_slots = Math.min(MAX_SLOTS, before + 1);
+            console.info("[zeonmkii] sc: ＋ clicked " + before + "→" + slotCount(node));
+            refresh();
+        });
+        const minus = node.addWidget("button", "－ slot", null, () => {
+            const before = slotCount(node);
+            let n = before - 1;
+            while (n >= MIN_SLOTS && slotIsWired(node, n + 1)) n--; // never hide a wired slot
+            node.properties.zeon_slots = Math.max(MIN_SLOTS, n);
+            console.info("[zeonmkii] sc: － clicked " + before + "→" + slotCount(node));
+            refresh();
+        });
+        for (const b of [plus, minus]) {
+            b.serialize = false;
+            if (!b.options) b.options = {};
+            b.options.serialize = false;
+        }
 
         const band = makeBand(node);
-        const toolbar = makeToolbar(node, [
-            {
-                label: "＋ slot",
-                title: "grow the stack (max 8)",
-                onClick: () => {
-                    node.properties.zeon_slots = Math.min(MAX_SLOTS, slotCount(node) + 1);
-                    refresh();
-                },
-            },
-            {
-                label: "－ slot",
-                title: "shrink the stack (min 3; wired slots stay)",
-                onClick: () => {
-                    let n = slotCount(node) - 1;
-                    while (n >= MIN_SLOTS && slotIsWired(node, n + 1)) n--; // never hide a wired slot
-                    node.properties.zeon_slots = Math.max(MIN_SLOTS, n);
-                    refresh();
-                },
-            },
-        ]);
-        // seat the toolbar just under the separator, above the slot boxes
-        // (widgets render in node.widgets order; toolbar/band are DOM widgets
-        // with serialize:false — reordering them never touches widgets_values)
-        const tw = node.widgets.find((w) => w.element === toolbar);
-        const sepIdx = node.widgets.findIndex((w) => w.name === "separator");
-        if (tw && sepIdx >= 0 && node.widgets.indexOf(tw) > sepIdx) {
-            node.widgets.splice(node.widgets.indexOf(tw), 1);
-            node.widgets.splice(sepIdx + 1, 0, tw);
-        }
+        // widget order: [separator, slot_1..8, ＋, －, band] — buttons pinned
+        // at the bottom, right above the preview. No splice, no reordering.
 
         function refresh() {
             const count = slotCount(node);
+            const shown = [];
             for (let i = 1; i <= MAX_SLOTS; i++) {
                 const w = slotWidget(node, i);
                 if (!w) continue;
                 if (i > count || slotIsWired(node, i)) collapse(w);
-                else reveal(w);
+                else { reveal(w); shown.push(i); }
             }
             node.setSize(node.computeSize());                        // height follows the boxes
-            if (app.graph) app.graph.setDirtyCanvas(true, true);     // force the repaint — v0.25.3
+            if (app.graph) app.graph.setDirtyCanvas(true, true);     // force the repaint
+            console.info("[zeonmkii] sc: refresh count=" + count + " visible=[" + shown.join(",") + "]");
             preview();
         }
 
