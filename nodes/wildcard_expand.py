@@ -37,10 +37,23 @@ _RE_INNERMOST = re.compile(r"\{([^{}]*)\}")
 
 
 def _wildcard_roots():
+    # 1) every folder registered under the "wildcards" key (Impact Pack and
+    #    friends register their wildcards dir here when installed)
+    roots = []
     try:
-        return list(folder_paths.get_folder_paths("wildcards"))
+        roots.extend(p for p in folder_paths.get_folder_paths("wildcards") if p)
+    except Exception as _e:
+        print(f"[ZeonmkII Wildcard] registered-folder lookup failed: {_e}")
+    # 2) ComfyUI root /wildcards — the common convention
+    try:
+        base = getattr(folder_paths, "base_path", None)
+        if base:
+            roots.append(os.path.join(base, "wildcards"))
     except Exception:
-        return []
+        pass
+    # 3) pack-local wildcards/ — ships with the pack
+    roots.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), "wildcards"))
+    return roots
 
 
 def _wildcard_file(name):
@@ -49,6 +62,17 @@ def _wildcard_file(name):
         for candidate in (os.path.join(root, name), os.path.join(root, name + ".txt")):
             if os.path.isfile(candidate):
                 return candidate
+    # Recursive fallback — Impact keeps wildcards in subfolders and its own
+    # names may or may not carry the subpath, so a bare-name ref like
+    # __hair__ should still find wildcards/text/hair.txt.
+    target = name.lower()
+    for root in _wildcard_roots():
+        if not os.path.isdir(root):
+            continue
+        for dirpath, _dirs, files in os.walk(root):
+            for f in files:
+                if f.lower() in (target, target + ".txt"):
+                    return os.path.join(dirpath, f)
     return None
 
 
@@ -107,6 +131,8 @@ class ZeonmkIIWildcardExpand:
             options = _file_options(path) if path else None
             if not options:
                 dead.add(name)
+                if len(dead) <= 3:   # log the first few misses, not a flood
+                    print(f"[ZeonmkII Wildcard] __{name}__ not found — roots searched: " + ", ".join(_wildcard_roots()))
                 return m.group(0)
             return rng.choice(options)
 

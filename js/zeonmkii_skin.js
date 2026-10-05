@@ -174,6 +174,8 @@ const ZEON_CLASSES = new Set([
   "ZeonmkII XY Plot",
   "Load Random Image ZeonmkII",
   "Load Random Prompt ZeonmkII",
+  "ZeonmkII Global Seed",
+  "ZeonmkII Wildcard Expand",
   "ZeonmkII Resolution",
   "ZeonmkII Run Timer",
   "ZeonmkII Save Image",
