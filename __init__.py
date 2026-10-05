@@ -1,7 +1,7 @@
 """
 @author: ZeonmkII
 @title: ComfyUI-ZeonmkII-Nodes
-@version: 0.28.0
+@version: 0.29.0
 @project: https://github.com/ZeonmkII/ComfyUI-ZeonmkII-Nodes
 @description: Utility-layer nodes for ComfyUI — character swapping, prompt
 tooling, timers, Krea 2 resolution presets, native-parity
