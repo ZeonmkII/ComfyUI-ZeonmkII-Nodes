@@ -23,6 +23,26 @@ from .saver_lib.utils import sanitize_filename, resolve_within_output, get_sha25
 from .saver_lib.utils_civitai import get_civitai_sampler_name, get_civitai_metadata, MAX_HASH_LENGTH
 from .saver_lib.prompt_metadata_extractor import PromptMetadataExtractor
 
+def _pair_samplers(sampler_name: str, scheduler_name: str) -> str:
+    """v0.27.0 multi-stage pairing (Boss spec): 'er_sde+res_2s' ×
+    'sgm_uniform+bong_tangent' → 'er_sde+sgm_uniform and res_2s+bong_tangent' —
+    each sampler keeps ITS scheduler instead of an unreadable chain of bare
+    names. The shorter side is padded by repeating its last value (shared
+    scheduler across stages)."""
+    samplers = [s.strip() for s in (sampler_name or "").split("+") if s.strip()]
+    scheds = [s.strip() for s in (scheduler_name or "").split("+") if s.strip()]
+    if not samplers and not scheds:
+        return ""
+    if not samplers:
+        return " and ".join(scheds)
+    if not scheds:
+        return " and ".join(samplers)
+    while len(scheds) < len(samplers):
+        scheds.append(scheds[-1])
+    while len(samplers) < len(scheds):
+        samplers.append(samplers[-1])
+    return " and ".join(f"{s}+{k}" for s, k in zip(samplers, scheds))
+
 def parse_checkpoint_name(ckpt_name: str) -> str:
     return os.path.basename(ckpt_name)
 
@@ -209,7 +229,12 @@ class ImageSaverMetadata:
         metadata_extractor = PromptMetadataExtractor([positive, negative])
         embeddings = metadata_extractor.get_embeddings()
         loras = metadata_extractor.get_loras()
-        civitai_sampler_name = get_civitai_sampler_name(sampler_name.replace('_gpu', ''), scheduler_name)
+        sampler_clean = sampler_name.replace('_gpu', '')
+        if "+" in sampler_clean or "+" in (scheduler_name or ""):
+            # v0.27.0 multi-stage: pair each sampler with ITS scheduler
+            civitai_sampler_name = _pair_samplers(sampler_clean, scheduler_name)
+        else:
+            civitai_sampler_name = get_civitai_sampler_name(sampler_clean, scheduler_name)
         basemodelname = parse_checkpoint_name_without_extension(modelname)
 
         # Get existing hashes from model, loras, and embeddings
