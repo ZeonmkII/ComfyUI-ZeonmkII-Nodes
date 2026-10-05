@@ -1,102 +1,324 @@
 /**
- * ComfyUI-ZeonmkII-Nodes — String Composer UI (v0.25.5)
+ * ComfyUI-ZeonmkII-Nodes — String Composer UI (v0.26.0)
  *
- * v0.25.5: the growth/hide machinery is retired. Field evidence (Boss's
- * 16:13 console paste): the state side was perfect — clicks fired, counts
- * moved, floor held — but the multiline textareas ignored hidden/display
- * flips entirely (the Vue frontend renders them without reacting to
- * out-of-band widget mutations; combos hid fine for weeks, textareas
- * never did). So: all 8 slots are ALWAYS visible; wiring a slot goes
- * through ComfyUI's NATIVE convert-to-input, which removes the box
- * through the core path — hide-when-wired, for real, done by core
- * itself. Empty boxes skip silently at join (Python side, unchanged).
+ * THE CHARSWAP PATTERN, REAPPLIED (Boss's call, option A — "B is the wrong
+ * answer"). Field-proven architecture from character_swap/lora_loader:
  *
- * Boss's shape B: one node IS the prompt stack.
- *   - 8 slot boxes: type in what you need, leave the rest empty
- *   - need a wire? convert slot to input (native) — box becomes a socket
- *   - live preview band: the final joined prompt as you type
+ *   - The 8 native slot_N multiline widgets are hidden at creation via the
+ *     SANCTIONED toggleWidget (hidden flag + type→"zeon_hidden" + computeSize
+ *     collapse). They survive as pure value stores: serialized, restored,
+ *     read by Python. Hiding works — v0.25.4's logs proved it (the failure
+ *     was only REVEALING textareas later; we never reveal again).
+ *   - The visible boxes are OUR OWN DOM textareas inside one hosted widget
+ *     (same family as CharSwap's rows): width-tracked, state-derived height
+ *     constants (never measured — DOM-widget law), value interceptors keep
+ *     DOM ↔ widget in sync both directions, save/restore untouched.
+ *   - ＋/－ are native canvas button widgets (v0.25.4 field-proven alive on
+ *     Boss's frontend). Growth = DOM rows appear; shrink = rows disappear.
+ *     Count lives in node.properties (LiteGraph-native persistence).
+ *   - Wired slots (native convert-to-input): the widget leaves the widget
+ *     list for the inputs list; the row collapses to a slim ⇦ wired tag.
+ *   - Preview band, \n separator escapes, empty-slot skipping: unchanged.
  *
- * Companion: nodes/text_blocks.py (join logic lives there).
+ * Boss's shape B: one node IS the prompt stack — born with 3, grows to 8.
+ *
+ * Companion: nodes/text_blocks.py (join logic lives there, unchanged).
  */
 import { app } from "/scripts/app.js";
-import { makeBand } from "./zeonmkii_skin.js";
+import { makeBand, ZEON } from "./zeonmkii_skin.js";
+import { applyAdaptiveCanvasOnly, installCanvasZoomPassthrough } from "./shared/index.mjs";
 
 const NODE_CLASS = "ZeonmkII String Composer";
+const MIN_SLOTS = 3;
 const MAX_SLOTS = 8;
+const MIN_W = 320;
+const WIDGET_NAME = "zeon_sc_rows";
 
-/** Mirror Python's decode_separator — \n / \t / \\ escapes in the
- * single-line separator box become real chars in the preview too. */
-function decodeSeparator(s) {
-    return s.replace(/\\\\|\\n|\\t/g, (m) => ({ "\\\\": "\\", "\\n": "\n", "\\t": "\t" }[m]));
+// Height constants — lockstep with the CSS below (state-derived, never measured).
+const PAD = 6;
+const ROW_H = 74; // label 13 + textarea 52 + margin 6 (+3 slack)
+
+function contentHeight(k) {
+    const n = Math.max(1, Math.min(MAX_SLOTS, k | 0));
+    return PAD + n * ROW_H + PAD + 2;
+}
+
+function findWidget(node, name) {
+    return node.widgets ? node.widgets.find((w) => w.name === name) : null;
+}
+
+function slotIsWired(node, i) {
+    const inp = (node.inputs || []).find((x) => x.name === `slot_${i}`);
+    return !!(inp && inp.link != null);
+}
+
+function propCount(node) {
+    if (!node.properties) node.properties = {};
+    const n = Number(node.properties.zeon_slots);
+    return Number.isFinite(n) ? Math.min(MAX_SLOTS, Math.max(MIN_SLOTS, n)) : MIN_SLOTS;
+}
+
+function effectiveCount(node) {
+    let n = propCount(node);
+    for (let i = MIN_SLOTS + 1; i <= MAX_SLOTS; i++) if (slotIsWired(node, i)) n = Math.max(n, i);
+    return n;
+}
+
+// CharSwap's sanctioned hide — hidden flag + TYPE RENAME + computeSize
+// collapse. The type rename is what pulls the widget out of the Vue render
+// pass entirely; values stay serialized.
+const HIDDEN_TAG = "zeon_hidden";
+const origProps = {};
+function toggleWidget(widget, show) {
+    if (!widget) return;
+    if (!origProps[widget.name]) {
+        origProps[widget.name] = { origType: widget.type, origComputeSize: widget.computeSize };
+    }
+    widget.hidden = !show;
+    widget.type = show ? origProps[widget.name].origType : HIDDEN_TAG;
+    widget.computeSize = show ? origProps[widget.name].origComputeSize : () => [0, -4];
+}
+
+function hideSlotWidgets(node) {
+    for (let i = 1; i <= MAX_SLOTS; i++) toggleWidget(findWidget(node, "slot_" + i), false);
+}
+
+// CharSwap's value interceptor — fires onChange on ANY write (ours, restore's).
+function interceptWidgetValue(widget, onChange) {
+    if (!widget) return;
+    let widgetValue = widget.value;
+    const desc =
+        Object.getOwnPropertyDescriptor(widget, "value") ||
+        Object.getOwnPropertyDescriptor(Object.getPrototypeOf(widget), "value");
+    Object.defineProperty(widget, "value", {
+        configurable: true,
+        enumerable: true,
+        get() {
+            return desc?.get ? desc.get.call(widget) : widgetValue;
+        },
+        set(newVal) {
+            if (desc?.set) desc.set.call(widget, newVal);
+            else widgetValue = newVal;
+            onChange(newVal);
+        },
+    });
+}
+
+function injectRowsCSS() {
+    if (document.getElementById("z-sc-css")) return;
+    const s = document.createElement("style");
+    s.id = "z-sc-css";
+    s.textContent = `
+    .z-sc-root { width:100%; box-sizing:border-box; padding:${PAD}px 2px; }
+    .z-sc-row { margin:0 0 6px 0; }
+    .z-sc-label { font-size:9px; color:#9aa0a6; letter-spacing:1.2px; padding:0 0 2px 2px;
+      display:flex; align-items:center; gap:5px; }
+    .z-sc-dot { width:7px; height:7px; border-radius:50%; display:inline-block; }
+    .z-sc-ta { width:100%; box-sizing:border-box; height:52px; resize:none; overflow-y:auto;
+      background:#121316; color:#e8e6e3; border:1px solid #232529; border-left:3px solid #A20000;
+      border-radius:6px; font:12px/1.4 ui-monospace, Menlo, Consolas, monospace;
+      padding:5px 8px; display:block; }
+    .z-sc-ta:focus { outline:none; border-color:#750000; }
+    .z-sc-ta::placeholder { color:#5a5e63; }
+    .z-sc-ta:disabled { opacity:.4; }
+    .z-sc-wired { display:none; font-size:10px; color:#4fb8d8; padding:14px 0 2px 2px; }
+    .z-sc-row.wired .z-sc-ta { display:none; }
+    .z-sc-row.wired .z-sc-wired { display:block; }
+    `;
+    document.head.appendChild(s);
+}
+
+// Incremental row sync — NEVER rebuilds under a focused textarea (preserve
+// caret while typing); only touches DOM when state actually changed.
+function renderRows(node, root) {
+    for (let i = 1; i <= MAX_SLOTS; i++) {
+        const show = i <= effectiveCount(node);
+        const wired = slotIsWired(node, i);
+        let row = root.querySelector(`[data-row="${i}"]`);
+        if (!show) { if (row) row.remove(); continue; }
+        if (!row) {
+            row = document.createElement("div");
+            row.className = "z-sc-row";
+            row.dataset.row = i;
+            const lab = document.createElement("div");
+            lab.className = "z-sc-label";
+            const dot = document.createElement("span");
+            dot.className = "z-sc-dot";
+            dot.style.background = ZEON.SLOT_HUES[(i - 1) % ZEON.SLOT_HUES.length];
+            lab.appendChild(dot);
+            lab.appendChild(document.createTextNode("slot " + i));
+            const ta = document.createElement("textarea");
+            ta.className = "z-sc-ta";
+            ta.spellcheck = false;
+            ta.placeholder = "text — or leave empty to skip";
+            const tag = document.createElement("div");
+            tag.className = "z-sc-wired";
+            tag.textContent = "⇦ wired — text arrives from the link";
+            row.appendChild(lab);
+            row.appendChild(ta);
+            row.appendChild(tag);
+            root.appendChild(row);
+            ta.addEventListener("input", () => {
+                const w = findWidget(node, "slot_" + i);
+                if (w && w.value !== ta.value) w.value = ta.value;
+            });
+        }
+        const ta = row.querySelector("textarea");
+        row.classList.toggle("wired", !!wired);
+        ta.disabled = !!wired;
+        if (!wired) {
+            const w = findWidget(node, "slot_" + i);
+            const v = String((w && w.value) ?? "");
+            if (ta.value !== v) ta.value = v; // restore/config writes land here
+        }
+    }
+}
+
+function fitNode(node) {
+    const w = Math.max(node.size?.[0] || 0, MIN_W);
+    try {
+        const cs = node.computeSize?.();
+        if (cs && cs[1] > 0) {
+            node.setSize?.([w, Math.round(cs[1])]);
+            return;
+        }
+    } catch (_e) { /* fall through */ }
+    node.setSize?.([w, node.size?.[1] || 300]);
+    app.canvas?.setDirty?.(true, true);
 }
 
 app.registerExtension({
     name: "ComfyUI-ZeonmkII-Nodes.StringComposer",
     setup() {
-        console.info("[zeonmkii] sc: string_composer v0.25.5 online (static 8-slot)");
+        console.info("[zeonmkii] sc: string_composer v0.26.0 online (charswap pattern)");
     },
     nodeCreated(node) {
         if (node.comfyClass !== NODE_CLASS) return;
 
-        const band = makeBand(node);
+        injectRowsCSS();
 
-        function slotWidget(n, i) {
-            return (n.widgets || []).find((w) => w.name === `slot_${i}`);
-        }
-        function slotIsWired(n, i) {
-            const inp = (n.inputs || []).find((x) => x.name === `slot_${i}`);
-            return !!(inp && inp.link != null);
-        }
+        const band = makeBand(node);
 
         function preview() {
             const parts = [];
             for (let i = 1; i <= MAX_SLOTS; i++) {
                 if (!slotIsWired(node, i)) {
-                    const w = slotWidget(node, i);
+                    const w = findWidget(node, "slot_" + i);
                     const v = w && typeof w.value === "string" ? w.value.trim() : "";
                     if (v) parts.push(v);
                 } else {
-                    parts.push(`⇦ slot_${i}`); // wired: content arrives at run time
+                    parts.push(`⇦ slot_${i}`);
                 }
             }
-            const sepW = (node.widgets || []).find((x) => x.name === "separator");
-            const sep = decodeSeparator(sepW && typeof sepW.value === "string" ? sepW.value : ", ");
+            const sepW = findWidget(node, "separator");
+            const raw = sepW && typeof sepW.value === "string" ? sepW.value : ", ";
+            const sep = raw.replace(/\\\\|\\n|\\t/g, (m) => ({ "\\\\": "\\", "\\n": "\n", "\\t": "\t" }[m]));
             band.text.textContent = parts.length ? parts.join(sep) : "— type in a box or wire a slot —";
         }
 
-        // live updates while typing / separator edits
-        for (let i = 1; i <= MAX_SLOTS; i++) {
-            const w = slotWidget(node, i);
-            if (!w) continue;
-            const orig = w.callback;
-            w.callback = function (...args) {
-                if (typeof orig === "function") orig.apply(this, args);
-                preview();
-            };
-            const el = w.element || w.inputEl;
-            if (el) el.addEventListener("input", preview);
+        function refresh(structural) {
+            renderRows(node, root);
+            preview();
+            if (structural) fitNode(node);
+            node.setDirtyCanvas?.(true, true);
         }
-        const sepW = (node.widgets || []).find((x) => x.name === "separator");
-        if (sepW) {
-            const origSep = sepW.callback;
-            sepW.callback = function (...args) {
-                if (typeof origSep === "function") origSep.apply(this, args);
-                preview();
-            };
+        node._zeonScRefresh = refresh;
+
+        // ＋/－ — native canvas buttons (field-proven alive). Count persists in
+        // node.properties; rows appear/disappear = our DOM, no negotiation.
+        const plus = node.addWidget("button", "＋ slot", null, () => {
+            node.properties.zeon_slots = Math.min(MAX_SLOTS, propCount(node) + 1);
+            refresh(true);
+        });
+        const minus = node.addWidget("button", "－ slot", null, () => {
+            let n = propCount(node) - 1;
+            while (n >= MIN_SLOTS && slotIsWired(node, n + 1)) n--; // never shrink past a wired slot
+            node.properties.zeon_slots = Math.max(MIN_SLOTS, n);
+            refresh(true);
+        });
+        for (const b of [plus, minus]) {
+            b.serialize = false;
+            if (!b.options) b.options = {};
+            b.options.serialize = false;
         }
 
+        // The rows widget — one hosted DOM block, CharSwap geometry laws:
+        // state-derived getMinHeight/getMaxHeight (never measured),
+        // computeLayoutSize for Nodes 2.0, adaptive canvasOnly, zoom passthrough.
+        const root = document.createElement("div");
+        root.className = "z-sc-root";
+        const rowsH = () => contentHeight(effectiveCount(node));
+        const rowsW = node.addDOMWidget(WIDGET_NAME, "zeonmkii_sc_rows", root, {
+            getValue: () => null,
+            setValue: () => {},
+            serialize: false,
+            getMinHeight: () => rowsH(),
+            getMaxHeight: () => rowsH(),
+            margin: 0,
+        });
+        rowsW.serialize = false;
+        rowsW.computeLayoutSize = () => ({ minHeight: rowsH(), minWidth: 1 });
+        applyAdaptiveCanvasOnly(rowsW);
+        installCanvasZoomPassthrough(root);
+        node._zeonScRoot = root;
+
+        // CharSwap's anti-shift restore guard (by-name rebuild before the
+        // positional deal) + post-restore repaint.
+        const origConfigure = node.configure;
+        node.configure = function (info) {
+            try {
+                if (info && info.widgets_values_named && Array.isArray(node.widgets) && node.widgets.length) {
+                    const named = info.widgets_values_named;
+                    info.widgets_values = node.widgets
+                        .filter((w) => w.serialize !== false)
+                        .map((w) => (w.name in named ? named[w.name] : w.value));
+                }
+            } catch (e) {
+                console.error("[zeonmkii] sc: restore guard failed:", e);
+            }
+            const r = origConfigure ? origConfigure.apply(this, arguments) : undefined;
+            try {
+                hideSlotWidgets(node);
+                renderRows(node, root);
+                preview();
+                fitNode(node);
+            } catch (e) {
+                console.error("[zeonmkii] sc: post-restore repaint failed:", e);
+            }
+            return r;
+        };
+
+        // Width floor + content-hugging height (legacy renderer only — Nodes
+        // 2.0 locks size via the layout store; clamping there desyncs).
+        const origResize = node.onResize;
+        node.onResize = function (size) {
+            return origResize ? origResize.call(this, size) : undefined;
+        };
+
+        // Value intercepts: widget→DOM (restore) + band updates on any write.
+        for (let i = 1; i <= MAX_SLOTS; i++) {
+            interceptWidgetValue(findWidget(node, "slot_" + i), () => preview());
+        }
+        interceptWidgetValue(findWidget(node, "separator"), () => preview());
+
+        // Wire/unwire → row swaps to the ⇦ tag through the core path only.
         const origOnConn = node.onConnectionsChange;
         node.onConnectionsChange = function (...args) {
             if (typeof origOnConn === "function") origOnConn.apply(this, args);
+            refresh(true);
+        };
+
+        hideSlotWidgets(node);
+        renderRows(node, root);
+        fitNode(node);
+
+        // First pass ONLY after the restore window fully settled (CharSwap law:
+        // no onConfigure hook alone, no setTimeout(0) — re-assert at 100ms).
+        setTimeout(() => {
+            hideSlotWidgets(node);
+            renderRows(node, root);
             preview();
-        };
-
-        const origOnConfigure = node.onConfigure;
-        node.onConfigure = function (...args) {
-            if (typeof origOnConfigure === "function") origOnConfigure.apply(this, args);
-            requestAnimationFrame(preview);
-        };
-
-        preview();
+            fitNode(node);
+        }, 100);
     },
 });
