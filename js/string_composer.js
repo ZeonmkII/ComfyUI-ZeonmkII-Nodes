@@ -19,6 +19,12 @@ const NODE_CLASS = "ZeonmkII String Composer";
 const MIN_SLOTS = 3;
 const MAX_SLOTS = 8;
 
+/** v0.25.1: mirror Python's decode_separator — \\n / \\t / \\\\ escapes in the
+ * single-line separator box become real chars in the preview too. */
+function decodeSeparator(s) {
+    return s.replace(/\\\\|\\n|\\t/g, (m) => ({ "\\\\": "\\", "\\n": "\n", "\\t": "\t" }[m]));
+}
+
 /** zero-footprint hide — the pack's collapse pattern (DOM-widget law). */
 function collapse(w) {
     if (!w) return;
@@ -119,7 +125,8 @@ app.registerExtension({
                 }
             }
             const sepW = (node.widgets || []).find((x) => x.name === "separator");
-            band.text.textContent = parts.length ? parts.join(sepW ? sepW.value : ", ") : "— type in a box or wire a slot —";
+            const sep = decodeSeparator(sepW && typeof sepW.value === "string" ? sepW.value : ", ");
+            band.text.textContent = parts.length ? parts.join(sep) : "— type in a box or wire a slot —";
         }
 
         // live updates while typing (multiline widget's textarea)

@@ -1,4 +1,4 @@
-"""ZeonmkII text blocks (v0.25.0) — String + String Composer (Boss spec Oct 3, shape B).
+"""ZeonmkII text blocks (v0.25.1) — String + String Composer (Boss spec Oct 3, shape B).
 
 - ✍️ String: the wide hand-editing textbox core never shipped. One multiline
   widget, STRING out, convert-to-input compatible.
@@ -11,7 +11,20 @@
 
 Companion JS: js/string_composer.js (visibility + growth + preview band).
 """
+import re
+
 _SLOT_COUNT = 8
+
+# v0.25.1: the separator box is single-line, so a REAL newline can't be typed
+# into it — escapes carry it instead. Alternation order matters: \\ before \n,
+# so a literal "\\\\n" survives as backslash + n.
+_SEP_ESCAPES = {"\\\\": "\\", "\\n": "\n", "\\t": "\t"}
+
+
+def decode_separator(separator):
+    """Turn the separator box's escape sequences into real characters."""
+    s = separator if isinstance(separator, str) else ", "
+    return re.sub(r"\\\\|\\n|\\t", lambda m: _SEP_ESCAPES[m.group(0)], s)
 
 
 def join_slots(separator, values):
@@ -19,7 +32,7 @@ def join_slots(separator, values):
     Empty/whitespace slots never contribute — and never leave stray
     separators behind."""
     parts = [v.strip() for v in values if isinstance(v, str) and v.strip() != ""]
-    sep = separator if separator is not None else ", "
+    sep = decode_separator(separator)
     return sep.join(parts)
 
 
@@ -61,7 +74,7 @@ class ZeonmkIIStringComposer:
                 "separator": ("STRING", {
                     "default": ", ",
                     "multiline": False,
-                    "tooltip": "joined between the non-empty parts",
+                    "tooltip": "joined between the non-empty parts — escapes: \\n = newline, \\t = tab, \\\\ = literal backslash",
                 }),
             },
             "optional": optional,

@@ -49,6 +49,7 @@ export function ensureStyles() {
   display:flex; align-items:center; gap:6px; padding:3px 8px; margin-top:4px;
   border-radius:6px; background:${ZEON.BODY}; border-left:3px solid ${ZEON.ACCENT};
   color:${ZEON.TEXT}; font-size:11px; min-height:18px;
+  white-space: pre-wrap;  /* v0.25.1: multi-line previews keep their newlines */
 }
 .zeon-band .zeon-band-hue { width:8px; height:8px; border-radius:50%; flex:0 0 auto; }
 .zeon-timer-root { width: 100%; height: 100%; position: relative; }
