@@ -8,17 +8,46 @@ on, a cache file inside the directory remembers what has already been
 picked and leaves those out until the folder is exhausted — then it resets
 by itself. Random Image Loader + character sheets + seeded seeds = no
 accidental repeats across a sheet run.
+
+Sweep-respect (v0.20.0): the XY Plot driver injects a hidden xy_lock token
+into this node for the duration of a plot run. While locked, the FIRST cell
+picks WITHOUT consuming the disk cache and records the chosen file; every
+later cell re-opens that same file. One pinned image for the whole grid,
+nothing marked used, and normal per-run behavior resumes after the sweep.
+The filename output carries a "[🔒 sweep]" suffix while locked so the
+freeze is visible.
 """
 
 import json
 import os
 import random
+from collections import OrderedDict
 
 import numpy as np
 import torch
 from PIL import Image
 
 from ._paths import resolve_path
+
+# ── XY sweep lock state (module-level, LRU-capped) ─────────────────────────
+# token -> (file_path, filename, badged_filename). The path is stored, not
+# the tensor, so the LRU can't pin image memory; replays re-open the file.
+_LOCK_MAX = 64
+_SWEEP_PICKS = OrderedDict()
+
+
+def _sweep_get(token):
+    if token in _SWEEP_PICKS:
+        _SWEEP_PICKS.move_to_end(token)
+        return _SWEEP_PICKS[token]
+    return None
+
+
+def _sweep_put(token, value):
+    _SWEEP_PICKS[token] = value
+    _SWEEP_PICKS.move_to_end(token)
+    while len(_SWEEP_PICKS) > _LOCK_MAX:
+        _SWEEP_PICKS.popitem(last=False)
 
 
 def _pil2tensor(image):
@@ -58,6 +87,9 @@ class ZeonmkIIRandomImage:
                     "tooltip": "Forget the already-picked history on the next run.",
                 }),
             },
+            "hidden": {
+                "xy_lock": ("STRING", {"default": ""}),
+            },
         }
 
     RETURN_TYPES = ("IMAGE", "STRING")
@@ -65,14 +97,32 @@ class ZeonmkIIRandomImage:
     FUNCTION = "load_random"
     CATEGORY = "ZeonmkII"
 
-    def load_random(self, image_directory, random_seed, exclude_selected=True, reset_cache=False):
+    def load_random(self, image_directory, random_seed, exclude_selected=True, reset_cache=False, xy_lock=""):
+        if xy_lock:
+            hit = _sweep_get(xy_lock)
+            if hit is not None:
+                return (self._tensor(hit[0]), hit[2])
+            path, filename = self._pick(image_directory, random_seed, exclude_selected, reset_cache, consume=False)
+            recorded = (path, filename, filename + " [🔒 sweep]")
+            _sweep_put(xy_lock, recorded)
+            return (self._tensor(path), recorded[2])
+
+        path, filename = self._pick(image_directory, random_seed, exclude_selected, reset_cache, consume=True)
+        return (self._tensor(path), filename)
+
+    @staticmethod
+    def _tensor(path):
+        img = Image.open(path)
+        return _pil2tensor(img)
+
+    def _pick(self, image_directory, random_seed, exclude_selected=True, reset_cache=False, consume=True):
         image_directory = resolve_path(image_directory)
         if not os.path.exists(image_directory):
             raise Exception(f"Image directory {image_directory} does not exist")
 
         cache_file = os.path.join(image_directory, ".comfyui_image_cache.json")
 
-        if reset_cache and os.path.exists(cache_file):
+        if consume and reset_cache and os.path.exists(cache_file):
             os.remove(cache_file)
 
         valid_extensions = (".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif")
@@ -100,7 +150,7 @@ class ZeonmkIIRandomImage:
                 # every image has been used once — start a fresh round
                 selected_files = set()
                 available_files = files
-                if os.path.exists(cache_file):
+                if consume and os.path.exists(cache_file):
                     os.remove(cache_file)
         else:
             available_files = files
@@ -109,10 +159,9 @@ class ZeonmkIIRandomImage:
         selected_file = random.choice(available_files)
         file_path = os.path.join(image_directory, selected_file)
 
-        if exclude_selected:
+        if consume and exclude_selected:
             selected_files.add(selected_file)
             with open(cache_file, "w") as f:
                 json.dump(list(selected_files), f)
 
-        img = Image.open(file_path)
-        return (_pil2tensor(img), selected_file)
+        return (file_path, selected_file)

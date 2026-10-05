@@ -500,6 +500,34 @@ function applySeedLock(out, seedMap) {
   }
 }
 
+// ── sweep-respect (v0.20.0) ───────────────────────────────────────────────
+// Freeze ZeonmkII's own stateful generators for the whole plot: the xy_lock
+// token rides the same per-cell prompt patch as the seed lock. Server-side,
+// the first locked execution records its pick WITHOUT touching the disk
+// cache and every later cell replays it, so only the swept axis changes.
+// An axis target is skipped — deliberately sweeping a generator (e.g. the
+// prompt file) must win over the freeze. Stateless nodes (Wildcard Expand,
+// Character Swap) and widget-seeded nodes (Global Seed, pinned by
+// applySeedLock above) need no lock.
+const SWEEP_LOCK_CLASSES = new Set(["Load Random Prompt ZeonmkII", "Load Random Image ZeonmkII"]);
+function applySweepLock(out, sessionId, state) {
+  if (!sessionId) return;
+  const targets = new Set();
+  for (const ax of [state?.x, state?.y]) {
+    if (ax && ax.nodeId != null) {
+      const te = findPromptEntry(out, ax.nodeId);
+      if (te) targets.add(te);
+    }
+  }
+  for (const k of Object.keys(out)) {
+    const e = out[k];
+    if (!e || !SWEEP_LOCK_CLASSES.has(e.class_type)) continue;
+    if (targets.has(e)) continue;
+    e.inputs = e.inputs || {};
+    e.inputs.xy_lock = sessionId + "#" + k;
+  }
+}
+
 // Subgraph-safe node lookup (mirrors text_overlay): app.graph.getNodeById only
 // resolves top-level nodes, so a plain parseInt(tail) misses an XY Plot node
 // placed inside a subgraph (its XYPlotState never gets injected). Walk nested
@@ -558,6 +586,7 @@ app.graphToPrompt = async function (...args) {
         injectAxis(out, state.x, run.xValue, node);
         injectAxis(out, state.y, run.yValue, node);
         if (run.lockSeed) applySeedLock(out, run.seedMap);
+        applySweepLock(out, run.sessionId, state);
       }
     }
   } catch (err) {

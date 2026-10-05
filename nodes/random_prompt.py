@@ -17,13 +17,41 @@ Deliberate changes from v3 (flagged to Boss 2026-10-03):
     sticky-boolean failure mode can't exist here.
 Cache scheme kept verbatim from v3: single_file → "<file>.cache.json"
 (line indices), folder → "<folder>/.comfyui_prompt_cache.json" (filenames).
+
+Sweep-respect (v0.20.0): the XY Plot driver injects a hidden xy_lock token
+(plot sessionId + node key) into every generator it freezes for a plot run.
+While locked, the FIRST execution picks WITHOUT consuming the disk cache and
+records the result; every later cell replays the recording. Sequential and
+tracked_random therefore hold still across a whole grid - nothing is marked
+used, nothing advances, and after the sweep the node behaves exactly as
+before. The source output carries a "[🔒 sweep]" suffix while locked so the
+freeze is visible in saved metadata.
 """
 
 import json
 import os
 import random
+from collections import OrderedDict
 
 from ._paths import resolve_path
+
+# ── XY sweep lock state (module-level, LRU-capped) ─────────────────────────
+_LOCK_MAX = 64
+_SWEEP_PICKS = OrderedDict()   # token -> (prompt, source-with-badge)
+
+
+def _sweep_get(token):
+    if token in _SWEEP_PICKS:
+        _SWEEP_PICKS.move_to_end(token)
+        return _SWEEP_PICKS[token]
+    return None
+
+
+def _sweep_put(token, value):
+    _SWEEP_PICKS[token] = value
+    _SWEEP_PICKS.move_to_end(token)
+    while len(_SWEEP_PICKS) > _LOCK_MAX:
+        _SWEEP_PICKS.popitem(last=False)
 
 
 class ZeonmkIIRandomPrompt:
@@ -57,6 +85,9 @@ class ZeonmkIIRandomPrompt:
                     "tooltip": "Seed for the pick — same seed, same prompt. Wire the global seed here for per-generation variety. (Named random_seed per pack law.)",
                 }),
             },
+            "hidden": {
+                "xy_lock": ("STRING", {"default": ""}),
+            },
         }
 
     RETURN_TYPES = ("STRING", "STRING")
@@ -84,9 +115,22 @@ class ZeonmkIIRandomPrompt:
 
     # ---------- main (v3 structure, pure seed) ----------
 
-    def pick_prompt(self, mode, path, selection_mode, random_seed):
+    def pick_prompt(self, mode, path, selection_mode, random_seed, xy_lock=""):
         path = resolve_path(path)
 
+        if xy_lock:
+            hit = _sweep_get(xy_lock)
+            if hit is not None:
+                return hit
+            prompt, source = self._pick(mode, path, selection_mode, random_seed, consume=False)
+            recorded = (prompt, source + " [🔒 sweep]")
+            _sweep_put(xy_lock, recorded)
+            return recorded
+
+        prompt, source = self._pick(mode, path, selection_mode, random_seed, consume=True)
+        return (prompt, source)
+
+    def _pick(self, mode, path, selection_mode, random_seed, consume):
         if mode == "single_file":
             if not os.path.exists(path):
                 raise Exception(f"Prompt file not found: {path}")
@@ -115,8 +159,9 @@ class ZeonmkIIRandomPrompt:
                 idx = random.choice(available)
             else:  # sequential
                 idx = available[0]
-            used.add(idx)
-            self._save_cache(cache_file, used)
+            if consume:
+                used.add(idx)
+                self._save_cache(cache_file, used)
             source = f"line {idx + 1} of {os.path.basename(path)}"
             if selection_mode == "sequential":
                 source += f" (sequential {len(used)}/{len(lines)})"
@@ -148,8 +193,9 @@ class ZeonmkIIRandomPrompt:
                     chosen = random.choice(available)
                 else:  # sequential
                     chosen = available[0]
-                used.add(chosen)
-                self._save_cache(cache_file, used)
+                if consume:
+                    used.add(chosen)
+                    self._save_cache(cache_file, used)
 
             with open(os.path.join(path, chosen), "r", encoding="utf-8") as f:
                 prompt = f.read().strip()

@@ -1,11 +1,12 @@
 """
 @author: ZeonmkII
 @title: ComfyUI-ZeonmkII-Nodes
-@version: 0.19.6
+@version: 0.20.0
 @project: https://github.com/ZeonmkII/ComfyUI-ZeonmkII-Nodes
 @description: Utility-layer nodes for ComfyUI — character swapping, prompt
 tooling, timers, Krea 2 resolution presets, native-parity
-image saving, multi-LoRA loading, XY comparison grids and workflow glue that never
+image saving, multi-LoRA loading, XY comparison grids with sweep-respecting
+generators, a global seed, seeded wildcard expansion, and workflow glue that never
 touch the inference path.
 Model-agnostic by design: works the same on SDXL, Krea 2, Z-Image and
 whatever ships next.
@@ -25,6 +26,8 @@ from .nodes.lora_loader import ZeonmkIILoRAsLoader
 from .nodes.xy_plot import ZeonmkIIXYPlot
 from .nodes.random_image import ZeonmkIIRandomImage
 from .nodes.random_prompt import ZeonmkIIRandomPrompt
+from .nodes.global_seed import ZeonmkIIGlobalSeed
+from .nodes.wildcard_expand import ZeonmkIIWildcardExpand
 from .nodes.resolution import ZeonmkIIResolution
 from .nodes.run_timer import ZeonmkIIRunTimer
 
@@ -59,6 +62,8 @@ NODE_CLASS_MAPPINGS = {
     "ZeonmkII XY Plot": ZeonmkIIXYPlot,
     "Load Random Image ZeonmkII": ZeonmkIIRandomImage,
     "Load Random Prompt ZeonmkII": ZeonmkIIRandomPrompt,
+    "ZeonmkII Global Seed": ZeonmkIIGlobalSeed,
+    "ZeonmkII Wildcard Expand": ZeonmkIIWildcardExpand,
     "ZeonmkII Resolution": ZeonmkIIResolution,
     "ZeonmkII Run Timer": ZeonmkIIRunTimer,
     "ZeonmkII Save Image": ZeonmkIISaveImage,
@@ -72,6 +77,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ZeonmkII XY Plot": "📊 XY Plot ZeonmkII",
     "Load Random Image ZeonmkII": "🎲 Load Random Image ZeonmkII",
     "Load Random Prompt ZeonmkII": "🎲 Load Random Prompt ZeonmkII",
+    "ZeonmkII Global Seed": "🌱 Global Seed ZeonmkII",
+    "ZeonmkII Wildcard Expand": "🃏 Wildcard Expand ZeonmkII",
     "ZeonmkII Resolution": "📐 Resolution ZeonmkII",
     "ZeonmkII Run Timer": "⏱ Run Timer ZeonmkII",
     "ZeonmkII Save Image": "💾 Save Image ZeonmkII",
