@@ -1,5 +1,5 @@
 /**
- * ComfyUI-ZeonmkII-Nodes — String Composer UI (v0.30.1)
+ * ComfyUI-ZeonmkII-Nodes — String Composer UI (v0.30.2)
  *
  * THE CHARSWAP PATTERN, REAPPLIED (Boss's call, option A — "B is the wrong
  * answer"). Field-proven architecture from character_swap/lora_loader:
@@ -18,8 +18,10 @@
  *     Boss's frontend), kept as the manual floor / wire-ahead controls.
  *     v0.30.0: rows AUTO-GROW — a filled or wired row summons the next one
  *     (born 1, max 8); the preview band is DELETED (Boss: doesn't need it).
- *   - Wired slots (native convert-to-input): the widget leaves the widget
- *     list for the inputs list; the row collapses to a slim ⇦ wired tag.
+ *   - v0.30.2: JS adds a native input socket per slot (hidden widget +
+ *     same-named input = convert-to-input's own internal state — no manual
+ *     conversion needed). Wired → upstream wins, the row collapses to a slim
+ *     ⇦ wired tag; unwired → the typed text returns from the value store.
  *   - Separator escapes + empty-slot skipping: unchanged (Python side).
  *
  * Boss's shape B (v0.30.0 edition): one node IS the prompt stack — born 1,
@@ -53,6 +55,22 @@ function findWidget(node, name) {
 function slotIsWired(node, i) {
     const inp = (node.inputs || []).find((x) => x.name === `slot_${i}`);
     return !!(inp && inp.link != null);
+}
+
+// v0.30.2 (Boss 02:12 — "the dynamically built slots doesn't have input slot"):
+// every slot gets a native input socket, added from JS. Socket + same-named
+// hidden widget is exactly convert-to-input's internal state: wired → the
+// upstream link serializes and the row shows ⇦; unwired → the hidden widget's
+// typed value serializes. Prompt-side: widget-declared names accept link
+// tuples — standard ComfyUI, Python untouched. try/catch per socket so one
+// refusal can never kill nodeCreated again (v0.30.1's hard lesson).
+function ensureSlotInputs(node) {
+    for (let i = 1; i <= MAX_SLOTS; i++) {
+        const name = "slot_" + i;
+        if (!(node.inputs || []).some((x) => x.name === name)) {
+            try { node.addInput(name, "STRING"); } catch (e) { /* keep building */ }
+        }
+    }
 }
 
 function propCount(node) {
@@ -190,12 +208,13 @@ function fitNode(node) {
 app.registerExtension({
     name: "ComfyUI-ZeonmkII-Nodes.StringComposer",
     setup() {
-        console.info("[zeonmkii] sc: string_composer v0.30.1 online (dynamic rows)");
+        console.info("[zeonmkii] sc: string_composer v0.30.2 online (dynamic rows + sockets)");
     },
     nodeCreated(node) {
         if (node.comfyClass !== NODE_CLASS) return;
 
         injectRowsCSS();
+        ensureSlotInputs(node);
 
         function refresh(structural) {
             renderRows(node, root);
@@ -260,6 +279,7 @@ app.registerExtension({
             }
             const r = origConfigure ? origConfigure.apply(this, arguments) : undefined;
             try {
+                ensureSlotInputs(node);
                 hideSlotWidgets(node);
                 renderRows(node, root);
                 fitNode(node);
@@ -294,6 +314,7 @@ app.registerExtension({
         // First pass ONLY after the restore window fully settled (CharSwap law:
         // no onConfigure hook alone, no setTimeout(0) — re-assert at 100ms).
         setTimeout(() => {
+            ensureSlotInputs(node);
             hideSlotWidgets(node);
             renderRows(node, root);
             fitNode(node);
