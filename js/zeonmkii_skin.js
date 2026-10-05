@@ -185,6 +185,8 @@ const ZEON_CLASSES = new Set([
   "ZeonmkII Pipe Edit",
   "ZeonmkII Pipe Init",
   "ZeonmkII Pipe Insert",
+  "ZeonmkII String",
+  "ZeonmkII String Composer",
   "ZeonmkII Resolution",
   "ZeonmkII Run Timer",
   "ZeonmkII Save Image",
