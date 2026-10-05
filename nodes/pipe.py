@@ -1,8 +1,18 @@
-"""ZeonmkII Pipe (v0.23.0) — the Easy-Use-style typed bundle for the save side.
+"""ZeonmkII Pipe (v0.24.0) — the typed bundle for the save side.
 
 Boss spec 2026-10-05 14:44 (Easy-Use screenshot in hand): three nodes, one cable.
 
   [sources] → [🔌 Pipe In] ─ZEON_PIPE─ [✏️ Pipe Edit] ─ZEON_PIPE─ [📤 Pipe Out] → 💾 Save Image
+
+v0.24.0 (Boss 14:57): the capture-at-source chain —
+
+  [🚰 Init] ─ [➕ Insert @ each stop]×N ─ [✏️ Edit] ─ [📤 Out (+VAE Decode)] → 💾 Save Image
+
+Insert converts any output to a string and writes it into a chosen field
+(mode: replace / comma-append). Out coerces inserted strings back to the
+saver's native INT/FLOAT/BOOLEAN/combo types and accepts the decoded image
+directly (decoded images are born right before save). Pipe In stays as the
+all-at-once alternative.
 
 - Pipe In: every Save Image field as a typed input, widgets identical to the
   saver's — whatever you don't wire rides its default into the pipe.
@@ -26,6 +36,12 @@ except Exception:  # standalone / test contexts
 
 PIPE_TYPE = "ZEON_PIPE"
 _EXTENSION_CHOICES = ["png", "jpeg", "jpg", "webp"]
+
+try:
+    from .any_to_string import _stringify  # the pack's ANY→STRING engine
+except ImportError:  # standalone / test contexts
+    def _stringify(v):
+        return v if isinstance(v, str) else str(v)
 
 # (name, comfy type, widget config) — saver's input order, verbatim defaults.
 _FIELD_SPECS = [
@@ -70,6 +86,56 @@ _EDITABLE_STRINGS = [
 _FIELD_NAMES = [s[0] for s in _FIELD_SPECS]
 _RETURN_TYPES = tuple(s[1] for s in _FIELD_SPECS)
 _DEFAULTS = {s[0]: (s[2] or {}).get("default") for s in _FIELD_SPECS}
+_SPEC_TYPES = {s[0]: s[1] for s in _FIELD_SPECS}
+_TARGETS = [n for n in _FIELD_NAMES if n != "images"]
+_SLOT_TARGET_DEFAULTS = ["modelname", "positive", "negative", "seed_value"]
+_INSERT_SLOTS = 4
+
+
+def _coerce(name, v):
+    """Inserted values arrive as strings; the saver's sockets want natives."""
+    t = _SPEC_TYPES[name]
+    if v is None:
+        d = _DEFAULTS.get(name)
+        return t[0] if (d is None and isinstance(t, list)) else d
+    if isinstance(t, list):  # combo (extension)
+        s = str(v).strip()
+        return s if s in t else t[0]
+    if t == "INT":
+        if isinstance(v, bool):
+            return int(v)
+        if isinstance(v, int):
+            return v
+        if isinstance(v, float):
+            return int(v)
+        try:
+            return int(str(v).strip())
+        except ValueError:
+            try:
+                return int(float(str(v).strip()))
+            except ValueError:
+                d = _DEFAULTS.get(name)
+                return 0 if d is None else d
+    if t == "FLOAT":
+        if isinstance(v, (int, float)) and not isinstance(v, bool):
+            return float(v)
+        try:
+            return float(str(v).strip())
+        except ValueError:
+            d = _DEFAULTS.get(name)
+            return 0.0 if d is None else d
+    if t == "BOOLEAN":
+        if isinstance(v, bool):
+            return v
+        s = str(v).strip().lower()
+        if s in ("true", "1", "yes", "on"):
+            return True
+        if s in ("false", "0", "no", "off", ""):
+            return False
+        return bool(_DEFAULTS.get(name))
+    if t == "STRING":
+        return v if isinstance(v, str) else str(v)
+    return v  # IMAGE and friends: never touch
 
 
 class ZeonmkIIPipeIn:
@@ -107,8 +173,11 @@ class ZeonmkIIPipeOut:
     def INPUT_TYPES(cls) -> dict:
         return {
             "required": {
-                "pipe": (PIPE_TYPE, {"tooltip": "bundle from Pipe In / Pipe Edit"}),
-            }
+                "pipe": (PIPE_TYPE, {"tooltip": "the chain — from Init / In / Insert / Edit"}),
+            },
+            "optional": {
+                "images": ("IMAGE", {"tooltip": "connect VAE Decode here — replaces the pipe's image"}),
+            },
         }
 
     RETURN_TYPES = _RETURN_TYPES
@@ -118,8 +187,12 @@ class ZeonmkIIPipeOut:
     CATEGORY = "ZeonmkII"
     DESCRIPTION = "Un-bundle the pipe — one socket per Save Image field, in the saver's order"
 
-    def expand(self, pipe):
-        return tuple(pipe.get(n, _DEFAULTS.get(n)) for n in _FIELD_NAMES)
+    def expand(self, pipe, **kwargs):
+        src = dict(pipe)
+        img = kwargs.get("images")
+        if img is not None:
+            src["images"] = img
+        return tuple(_coerce(n, src.get(n, _DEFAULTS.get(n))) for n in _FIELD_NAMES)
 
 
 class ZeonmkIIPipeEdit:
@@ -151,4 +224,78 @@ class ZeonmkIIPipeEdit:
         img = kwargs.get("images")
         if img is not None:
             out["images"] = img
+        return (out,)
+
+
+class ZeonmkIIPipeInit:
+    @classmethod
+    def INPUT_TYPES(cls) -> dict:
+        return {"required": {}}
+
+    RETURN_TYPES = (PIPE_TYPE,)
+    RETURN_NAMES = ("pipe",)
+    OUTPUT_TOOLTIPS = ("the empty pipe — every field at its saver default, no image yet",)
+    FUNCTION = "start"
+    CATEGORY = "ZeonmkII"
+    DESCRIPTION = "Start the pipe chain — insert values at each workflow stop, expand before Save Image"
+
+    def start(self):
+        pipe = {n: _DEFAULTS.get(n) for n in _FIELD_NAMES}
+        pipe["images"] = None
+        return (pipe,)
+
+
+class ZeonmkIIPipeInsert:
+    @classmethod
+    def INPUT_TYPES(cls) -> dict:
+        optional = {}
+        for i in range(1, _INSERT_SLOTS + 1):
+            optional[f"value_{i}"] = ("*", {
+                "tooltip": "any output — e.g. the loader's ckpt_name STRING (not the MODEL object itself), sampler, steps, seed…",
+            })
+            optional[f"target_{i}"] = (_TARGETS, {
+                "default": _SLOT_TARGET_DEFAULTS[i - 1],
+                "tooltip": "which Save Image field this value lands in",
+            })
+            optional[f"mode_{i}"] = (["replace", "append"], {
+                "default": "replace",
+                "tooltip": "append comma-joins into the field (modelname multi-model style)",
+            })
+        return {
+            "required": {
+                "pipe": (PIPE_TYPE, {"tooltip": "the chain — from Init or an earlier Insert"}),
+            },
+            "optional": optional,
+        }
+
+    RETURN_TYPES = (PIPE_TYPE,)
+    RETURN_NAMES = ("pipe",)
+    OUTPUT_TOOLTIPS = ("the chain with this stop's values folded in",)
+    FUNCTION = "insert"
+    CATEGORY = "ZeonmkII"
+    DESCRIPTION = "Capture-at-source: convert any output to a string and fold it into a pipe field"
+
+    def insert(self, pipe, **kwargs):
+        out = dict(pipe)
+        for i in range(1, _INSERT_SLOTS + 1):
+            v = kwargs.get(f"value_{i}")
+            if v is None:
+                continue
+            target = kwargs.get(f"target_{i}") or _SLOT_TARGET_DEFAULTS[i - 1]
+            if target not in _FIELD_NAMES:
+                continue
+            if target == "images":
+                out["images"] = v  # raw pass-through — tensors are never stringified
+                continue
+            s = _stringify(v)
+            if not isinstance(s, str) or s.strip() == "":
+                continue
+            mode = kwargs.get(f"mode_{i}", "replace")
+            old = out.get(target)
+            old_s = old if isinstance(old, str) else ("" if old is None else str(old))
+            if mode == "append" and old_s.strip():
+                if s not in [p.strip() for p in old_s.split(",")]:
+                    out[target] = f"{old_s},{s}"  # dup = already in the list, leave as-is
+            else:
+                out[target] = s
         return (out,)

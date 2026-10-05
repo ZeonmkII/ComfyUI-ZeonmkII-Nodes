@@ -1,7 +1,7 @@
 """
 @author: ZeonmkII
 @title: ComfyUI-ZeonmkII-Nodes
-@version: 0.23.0
+@version: 0.24.0
 @project: https://github.com/ZeonmkII/ComfyUI-ZeonmkII-Nodes
 @description: Utility-layer nodes for ComfyUI — character swapping, prompt
 tooling, timers, Krea 2 resolution presets, native-parity
@@ -31,7 +31,7 @@ from .nodes.wildcard_expand import ZeonmkIIWildcardExpand
 from .nodes.any_to_string import ZeonmkIIAnyToString
 from .nodes.read_metadata import ZeonmkIIReadMetadata
 from .nodes.manifest import ZeonmkIIManifest, ZeonmkIIManifestExpand
-from .nodes.pipe import ZeonmkIIPipeIn, ZeonmkIIPipeOut, ZeonmkIIPipeEdit
+from .nodes.pipe import ZeonmkIIPipeIn, ZeonmkIIPipeOut, ZeonmkIIPipeEdit, ZeonmkIIPipeInit, ZeonmkIIPipeInsert
 from .nodes.resolution import ZeonmkIIResolution
 from .nodes.run_timer import ZeonmkIIRunTimer
 
@@ -75,6 +75,8 @@ NODE_CLASS_MAPPINGS = {
     "ZeonmkII Pipe In": ZeonmkIIPipeIn,
     "ZeonmkII Pipe Out": ZeonmkIIPipeOut,
     "ZeonmkII Pipe Edit": ZeonmkIIPipeEdit,
+    "ZeonmkII Pipe Init": ZeonmkIIPipeInit,
+    "ZeonmkII Pipe Insert": ZeonmkIIPipeInsert,
     "ZeonmkII Resolution": ZeonmkIIResolution,
     "ZeonmkII Run Timer": ZeonmkIIRunTimer,
     "ZeonmkII Save Image": ZeonmkIISaveImage,
@@ -93,6 +95,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ZeonmkII Pipe In": "🔌 Pipe In ZeonmkII",
     "ZeonmkII Pipe Out": "📤 Pipe Out ZeonmkII",
     "ZeonmkII Pipe Edit": "✏️ Pipe Edit ZeonmkII",
+    "ZeonmkII Pipe Init": "🚰 Pipe Init ZeonmkII",
+    "ZeonmkII Pipe Insert": "➕ Pipe Insert ZeonmkII",
     "Load Random Image ZeonmkII": "🎲 Load Random Image ZeonmkII",
     "Load Random Prompt ZeonmkII": "🎲 Load Random Prompt ZeonmkII",
     "ZeonmkII Global Seed": "🌱 Global Seed ZeonmkII",
