@@ -42,6 +42,7 @@ def _wildcard_roots():
     #    installs never register the key and get_folder_paths raises).
     #    A missing key is the NORMAL case (fallbacks below cover it), so
     #    stay silent — only unexpected lookup errors print once.
+    roots = []
     try:
         roots.extend(p for p in folder_paths.get_folder_paths("wildcards") if p)
     except KeyError:
