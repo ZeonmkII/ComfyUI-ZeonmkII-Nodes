@@ -37,13 +37,17 @@ _RE_INNERMOST = re.compile(r"\{([^{}]*)\}")
 
 
 def _wildcard_roots():
-    # 1) every folder registered under the "wildcards" key (Impact Pack and
-    #    friends register their wildcards dir here when installed)
-    roots = []
+    # 1) every folder registered under the "wildcards" key (Impact and
+    #    friends register their wildcards dir here — NOT guaranteed: some
+    #    installs never register the key and get_folder_paths raises).
+    #    A missing key is the NORMAL case (fallbacks below cover it), so
+    #    stay silent — only unexpected lookup errors print once.
     try:
         roots.extend(p for p in folder_paths.get_folder_paths("wildcards") if p)
+    except KeyError:
+        pass   # no "wildcards" key registered on this install — expected
     except Exception as _e:
-        print(f"[ZeonmkII Wildcard] registered-folder lookup failed: {_e}")
+        print(f"[ZeonmkII Wildcard] registered-folder lookup failed (once): {_e}")
     # 2) ComfyUI root /wildcards — the common convention
     try:
         base = getattr(folder_paths, "base_path", None)
