@@ -1,19 +1,19 @@
-"""ZeonmkII text blocks (v0.25.1) — String + String Composer (Boss spec Oct 3, shape B).
+"""ZeonmkII text blocks (v0.31.0) — String + String Composer (Boss spec 2026-10-06 02:22).
 
 - ✍️ String: the wide hand-editing textbox core never shipped. One multiline
   widget, STRING out, convert-to-input compatible.
-- 🧵 String Composer: the whole prompt stack in ONE node. Eight slots; an
-  unwired slot shows its own inline wide textbox (type the header right
-  in), the moment a wire lands its box hides itself (JS side). Separator
-  widget between parts (default ", "), empty slots skipped silently.
-  The JS layer adds the ＋/－ growth control and the live preview band —
-  Python just joins what arrives.
+- 🧵 String Composer: DOWNSIZED to four static multiline textboxes — no
+  dynamics, no DOM rows, no hidden widgets, no JS layer (the v0.26–v0.30
+  dynamic era died on the Nodes-2.0 frontend; Boss pulled the plug 02:22).
+  Separator widget between parts (default ", "), escapes keep \\n/\\t/\\\\,
+  empty slots skipped silently. Wiring = standard convert-to-input on the
+  visible widget.
 
-Companion JS: js/string_composer.js (visibility + growth + preview band).
+Companion JS: js/string_composer.js (greeting-only stub).
 """
 import re
 
-_SLOT_COUNT = 8
+_SLOT_COUNT = 4  # v0.31.0: Boss's 02:22 downscope — static four, no dynamics
 
 # v0.25.1: the separator box is single-line, so a REAL newline can't be typed
 # into it — escapes carry it instead. Alternation order matters: \\ before \n,
@@ -85,7 +85,7 @@ class ZeonmkIIStringComposer:
     OUTPUT_TOOLTIPS = ("the final joined prompt — header + parts + footer",)
     FUNCTION = "compose"
     CATEGORY = "ZeonmkII"
-    DESCRIPTION = "One node = the whole prompt stack: inline text boxes where unwired, live preview band"
+    DESCRIPTION = "Four textboxes → one string, joined by the separator"
 
     def compose(self, separator, **kwargs):
         values = [kwargs.get(f"slot_{i}") for i in range(1, _SLOT_COUNT + 1)]
