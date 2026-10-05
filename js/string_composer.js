@@ -64,23 +64,22 @@ function effectiveCount(node) {
     return n;
 }
 
-// CharSwap's sanctioned hide — hidden flag + TYPE RENAME + computeSize
-// collapse. The type rename is what pulls the widget out of the Vue render
-// pass entirely; values stay serialized.
-const HIDDEN_TAG = "zeon_hidden";
-const origProps = {};
-function toggleWidget(widget, show) {
-    if (!widget) return;
-    if (!origProps[widget.name]) {
-        origProps[widget.name] = { origType: widget.type, origComputeSize: widget.computeSize };
-    }
-    widget.hidden = !show;
-    widget.type = show ? origProps[widget.name].origType : HIDDEN_TAG;
-    widget.computeSize = show ? origProps[widget.name].origComputeSize : () => [0, -4];
-}
-
+// The loader's hideJsonWidget op — the sanctioned hide for STRING widgets:
+// hidden + computeSize collapse + options.canvasOnly (canvasOnly is what
+// EJECTS the widget from the Vue body — v0.26.0's type-rename made the
+// frontend render fallback "⇦ slot_N" ghost rows instead. No rename.)
 function hideSlotWidgets(node) {
-    for (let i = 1; i <= MAX_SLOTS; i++) toggleWidget(findWidget(node, "slot_" + i), false);
+    for (let i = 1; i <= MAX_SLOTS; i++) {
+        const w = findWidget(node, "slot_" + i);
+        if (!w) continue;
+        w.hidden = true;
+        w.computeSize = () => [0, -4];
+        if (!w.options) w.options = {};
+        w.options.canvasOnly = true;
+        const hideEl = () => { const el = w.element || w.inputEl; if (el) el.style.display = "none"; };
+        hideEl();
+        requestAnimationFrame(hideEl);
+    }
 }
 
 // CharSwap's value interceptor — fires onChange on ANY write (ours, restore's).
@@ -197,8 +196,6 @@ app.registerExtension({
 
         injectRowsCSS();
 
-        const band = makeBand(node);
-
         function preview() {
             const parts = [];
             for (let i = 1; i <= MAX_SLOTS; i++) {
@@ -241,6 +238,9 @@ app.registerExtension({
             if (!b.options) b.options = {};
             b.options.serialize = false;
         }
+
+        const band = makeBand(node);
+        // screen order: separator → [hidden slots] → rows → ＋/－ → band
 
         // The rows widget — one hosted DOM block, CharSwap geometry laws:
         // state-derived getMinHeight/getMaxHeight (never measured),
