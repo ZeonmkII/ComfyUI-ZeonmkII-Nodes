@@ -1,5 +1,5 @@
 /**
- * ComfyUI-ZeonmkII-Nodes — String Composer UI (v0.30.0)
+ * ComfyUI-ZeonmkII-Nodes — String Composer UI (v0.30.1)
  *
  * THE CHARSWAP PATTERN, REAPPLIED (Boss's call, option A — "B is the wrong
  * answer"). Field-proven architecture from character_swap/lora_loader:
@@ -11,8 +11,9 @@
  *     was only REVEALING textareas later; we never reveal again).
  *   - The visible boxes are OUR OWN DOM textareas inside one hosted widget
  *     (same family as CharSwap's rows): width-tracked, state-derived height
- *     constants (never measured — DOM-widget law), value interceptors keep
- *     DOM ↔ widget in sync both directions, save/restore untouched.
+ *     constants (never measured — DOM-widget law), DOM input calls refresh
+ *     explicitly (v0.30.1: intercepts REMOVED — Nodes-2.0 locks widget.value
+ *     non-configurable; defineProperty throws on it), save/restore untouched.
  *   - ＋/－ are native canvas button widgets (v0.25.4 field-proven alive on
  *     Boss's frontend), kept as the manual floor / wire-ahead controls.
  *     v0.30.0: rows AUTO-GROW — a filled or wired row summons the next one
@@ -94,26 +95,13 @@ function hideSlotWidgets(node) {
     }
 }
 
-// CharSwap's value interceptor — fires onChange on ANY write (ours, restore's).
-function interceptWidgetValue(widget, onChange) {
-    if (!widget) return;
-    let widgetValue = widget.value;
-    const desc =
-        Object.getOwnPropertyDescriptor(widget, "value") ||
-        Object.getOwnPropertyDescriptor(Object.getPrototypeOf(widget), "value");
-    Object.defineProperty(widget, "value", {
-        configurable: true,
-        enumerable: true,
-        get() {
-            return desc?.get ? desc.get.call(widget) : widgetValue;
-        },
-        set(newVal) {
-            if (desc?.set) desc.set.call(widget, newVal);
-            else widgetValue = newVal;
-            onChange(newVal);
-        },
-    });
-}
+// v0.30.1 LAW (field-proven via Boss's console, 2026-10-06 02:01): the
+// Nodes-2.0 frontend defines widget.value as a NON-CONFIGURABLE property —
+// Object.defineProperty on it throws "Cannot redefine property: value" and
+// that throw killed nodeCreated at the old intercept loop since v0.26.0,
+// BEFORE hideSlotWidgets/renderRows ever ran (the bland-8-boxes screenshot).
+// No more value intercepts anywhere in this file: DOM typing refreshes
+// explicitly, restore lands through the configure wrap's renderRows.
 
 function injectRowsCSS() {
     if (document.getElementById("z-sc-css")) return;
@@ -172,6 +160,7 @@ function renderRows(node, root) {
             ta.addEventListener("input", () => {
                 const w = findWidget(node, "slot_" + i);
                 if (w && w.value !== ta.value) w.value = ta.value;
+                node._zeonScRefresh?.(false); // v0.30.1: intercepts are gone — we grow the stack ourselves
             });
         }
         const ta = row.querySelector("textarea");
@@ -201,7 +190,7 @@ function fitNode(node) {
 app.registerExtension({
     name: "ComfyUI-ZeonmkII-Nodes.StringComposer",
     setup() {
-        console.info("[zeonmkii] sc: string_composer v0.30.0 online (dynamic rows)");
+        console.info("[zeonmkii] sc: string_composer v0.30.1 online (dynamic rows)");
     },
     nodeCreated(node) {
         if (node.comfyClass !== NODE_CLASS) return;
@@ -287,11 +276,9 @@ app.registerExtension({
             return origResize ? origResize.call(this, size) : undefined;
         };
 
-        // Value intercepts: widget→DOM (restore) lands through renderRows,
-        // which also drives v0.30.0's auto-grow (a typed-in row summons the next).
-        for (let i = 1; i <= MAX_SLOTS; i++) {
-            interceptWidgetValue(findWidget(node, "slot_" + i), () => refresh(false));
-        }
+        // (v0.30.1) Value intercepts REMOVED — see the law note where the old
+        // helper lived. Auto-grow rides the DOM input handler's refresh; restore
+        // rides the configure wrap's renderRows. Nothing intercepts values now.
 
         // Wire/unwire → row swaps to the ⇦ tag through the core path only.
         const origOnConn = node.onConnectionsChange;
