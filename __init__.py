@@ -1,7 +1,7 @@
 """
 @author: ZeonmkII
 @title: ComfyUI-ZeonmkII-Nodes
-@version: 0.21.1
+@version: 0.22.0
 @project: https://github.com/ZeonmkII/ComfyUI-ZeonmkII-Nodes
 @description: Utility-layer nodes for ComfyUI — character swapping, prompt
 tooling, timers, Krea 2 resolution presets, native-parity
@@ -30,6 +30,7 @@ from .nodes.global_seed import ZeonmkIIGlobalSeed
 from .nodes.wildcard_expand import ZeonmkIIWildcardExpand
 from .nodes.any_to_string import ZeonmkIIAnyToString
 from .nodes.read_metadata import ZeonmkIIReadMetadata
+from .nodes.manifest import ZeonmkIIManifest, ZeonmkIIManifestExpand
 from .nodes.resolution import ZeonmkIIResolution
 from .nodes.run_timer import ZeonmkIIRunTimer
 
@@ -68,6 +69,8 @@ NODE_CLASS_MAPPINGS = {
     "ZeonmkII Wildcard Expand": ZeonmkIIWildcardExpand,
     "ZeonmkII ANY to STRING": ZeonmkIIAnyToString,
     "ZeonmkII Read Metadata": ZeonmkIIReadMetadata,
+    "ZeonmkII Manifest": ZeonmkIIManifest,
+    "ZeonmkII Manifest Expand": ZeonmkIIManifestExpand,
     "ZeonmkII Resolution": ZeonmkIIResolution,
     "ZeonmkII Run Timer": ZeonmkIIRunTimer,
     "ZeonmkII Save Image": ZeonmkIISaveImage,
@@ -81,6 +84,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ZeonmkII XY Plot": "📊 XY Plot ZeonmkII",
     "ZeonmkII ANY to STRING": "🔤 ANY to STRING ZeonmkII",
     "ZeonmkII Read Metadata": "🧾 Read Metadata ZeonmkII",
+    "ZeonmkII Manifest": "📦 Manifest ZeonmkII",
+    "ZeonmkII Manifest Expand": "📤 Manifest Expand ZeonmkII",
     "Load Random Image ZeonmkII": "🎲 Load Random Image ZeonmkII",
     "Load Random Prompt ZeonmkII": "🎲 Load Random Prompt ZeonmkII",
     "ZeonmkII Global Seed": "🌱 Global Seed ZeonmkII",

@@ -178,6 +178,8 @@ const ZEON_CLASSES = new Set([
   "ZeonmkII Wildcard Expand",
   "ZeonmkII ANY to STRING",
   "ZeonmkII Read Metadata",
+  "ZeonmkII Manifest",
+  "ZeonmkII Manifest Expand",
   "ZeonmkII Resolution",
   "ZeonmkII Run Timer",
   "ZeonmkII Save Image",
