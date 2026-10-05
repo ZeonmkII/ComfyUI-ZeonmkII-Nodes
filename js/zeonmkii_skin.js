@@ -180,6 +180,8 @@ const ZEON_CLASSES = new Set([
   "ZeonmkII Global Seed",
   "ZeonmkII Wildcard Expand",
   "ZeonmkII ANY to STRING",
+  "ZeonmkII Model Name",
+  "ZeonmkII Input Watcher",
   "ZeonmkII Read Metadata",
   "ZeonmkII Manifest",
   "ZeonmkII Manifest Expand",
