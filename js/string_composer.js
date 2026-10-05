@@ -1,5 +1,5 @@
 /**
- * ComfyUI-ZeonmkII-Nodes — String Composer UI (v0.26.0)
+ * ComfyUI-ZeonmkII-Nodes — String Composer UI (v0.30.0)
  *
  * THE CHARSWAP PATTERN, REAPPLIED (Boss's call, option A — "B is the wrong
  * answer"). Field-proven architecture from character_swap/lora_loader:
@@ -14,22 +14,24 @@
  *     constants (never measured — DOM-widget law), value interceptors keep
  *     DOM ↔ widget in sync both directions, save/restore untouched.
  *   - ＋/－ are native canvas button widgets (v0.25.4 field-proven alive on
- *     Boss's frontend). Growth = DOM rows appear; shrink = rows disappear.
- *     Count lives in node.properties (LiteGraph-native persistence).
+ *     Boss's frontend), kept as the manual floor / wire-ahead controls.
+ *     v0.30.0: rows AUTO-GROW — a filled or wired row summons the next one
+ *     (born 1, max 8); the preview band is DELETED (Boss: doesn't need it).
  *   - Wired slots (native convert-to-input): the widget leaves the widget
  *     list for the inputs list; the row collapses to a slim ⇦ wired tag.
- *   - Preview band, \n separator escapes, empty-slot skipping: unchanged.
+ *   - Separator escapes + empty-slot skipping: unchanged (Python side).
  *
- * Boss's shape B: one node IS the prompt stack — born with 3, grows to 8.
+ * Boss's shape B (v0.30.0 edition): one node IS the prompt stack — born 1,
+ * auto-grows to 8 as rows fill.
  *
  * Companion: nodes/text_blocks.py (join logic lives there, unchanged).
  */
 import { app } from "/scripts/app.js";
-import { makeBand, ZEON } from "./zeonmkii_skin.js";
+import { ZEON } from "./zeonmkii_skin.js";
 import { applyAdaptiveCanvasOnly, installCanvasZoomPassthrough } from "./shared/index.mjs";
 
 const NODE_CLASS = "ZeonmkII String Composer";
-const MIN_SLOTS = 3;
+const MIN_SLOTS = 1;
 const MAX_SLOTS = 8;
 const MIN_W = 320;
 const WIDGET_NAME = "zeon_sc_rows";
@@ -60,8 +62,18 @@ function propCount(node) {
 
 function effectiveCount(node) {
     let n = propCount(node);
-    for (let i = MIN_SLOTS + 1; i <= MAX_SLOTS; i++) if (slotIsWired(node, i)) n = Math.max(n, i);
-    return n;
+    // v0.30.0 dynamic rows: a filled or wired row summons the next (empty) one.
+    // propCount stays the manual floor (＋/－ for wiring ahead of content).
+    for (let i = MIN_SLOTS; i <= MAX_SLOTS; i++) {
+        if (rowHasText(node, i)) n = Math.max(n, Math.min(MAX_SLOTS, i + 1));
+    }
+    return Math.max(n, MIN_SLOTS);
+}
+
+function rowHasText(node, i) {
+    if (slotIsWired(node, i)) return true;
+    const w = findWidget(node, "slot_" + i);
+    return !!(w && typeof w.value === "string" && w.value.trim() !== "");
 }
 
 // The loader's hideJsonWidget op — the sanctioned hide for STRING widgets:
@@ -189,33 +201,15 @@ function fitNode(node) {
 app.registerExtension({
     name: "ComfyUI-ZeonmkII-Nodes.StringComposer",
     setup() {
-        console.info("[zeonmkii] sc: string_composer v0.26.0 online (charswap pattern)");
+        console.info("[zeonmkii] sc: string_composer v0.30.0 online (dynamic rows)");
     },
     nodeCreated(node) {
         if (node.comfyClass !== NODE_CLASS) return;
 
         injectRowsCSS();
 
-        function preview() {
-            const parts = [];
-            for (let i = 1; i <= MAX_SLOTS; i++) {
-                if (!slotIsWired(node, i)) {
-                    const w = findWidget(node, "slot_" + i);
-                    const v = w && typeof w.value === "string" ? w.value.trim() : "";
-                    if (v) parts.push(v);
-                } else {
-                    parts.push(`⇦ slot_${i}`);
-                }
-            }
-            const sepW = findWidget(node, "separator");
-            const raw = sepW && typeof sepW.value === "string" ? sepW.value : ", ";
-            const sep = raw.replace(/\\\\|\\n|\\t/g, (m) => ({ "\\\\": "\\", "\\n": "\n", "\\t": "\t" }[m]));
-            band.text.textContent = parts.length ? parts.join(sep) : "— type in a box or wire a slot —";
-        }
-
         function refresh(structural) {
             renderRows(node, root);
-            preview();
             if (structural) fitNode(node);
             node.setDirtyCanvas?.(true, true);
         }
@@ -229,7 +223,7 @@ app.registerExtension({
         });
         const minus = node.addWidget("button", "－ slot", null, () => {
             let n = propCount(node) - 1;
-            while (n >= MIN_SLOTS && slotIsWired(node, n + 1)) n--; // never shrink past a wired slot
+            while (n >= MIN_SLOTS && rowHasText(node, n + 1)) n--; // never shrink past a wired or filled row
             node.properties.zeon_slots = Math.max(MIN_SLOTS, n);
             refresh(true);
         });
@@ -239,8 +233,7 @@ app.registerExtension({
             b.options.serialize = false;
         }
 
-        const band = makeBand(node);
-        // screen order: separator → [hidden slots] → rows → ＋/－ → band
+        // screen order: separator → [hidden slots] → rows → ＋/－ (v0.30.0: preview band deleted, Boss's call)
 
         // The rows widget — one hosted DOM block, CharSwap geometry laws:
         // state-derived getMinHeight/getMaxHeight (never measured),
@@ -280,7 +273,6 @@ app.registerExtension({
             try {
                 hideSlotWidgets(node);
                 renderRows(node, root);
-                preview();
                 fitNode(node);
             } catch (e) {
                 console.error("[zeonmkii] sc: post-restore repaint failed:", e);
@@ -295,11 +287,11 @@ app.registerExtension({
             return origResize ? origResize.call(this, size) : undefined;
         };
 
-        // Value intercepts: widget→DOM (restore) + band updates on any write.
+        // Value intercepts: widget→DOM (restore) lands through renderRows,
+        // which also drives v0.30.0's auto-grow (a typed-in row summons the next).
         for (let i = 1; i <= MAX_SLOTS; i++) {
-            interceptWidgetValue(findWidget(node, "slot_" + i), () => preview());
+            interceptWidgetValue(findWidget(node, "slot_" + i), () => refresh(false));
         }
-        interceptWidgetValue(findWidget(node, "separator"), () => preview());
 
         // Wire/unwire → row swaps to the ⇦ tag through the core path only.
         const origOnConn = node.onConnectionsChange;
@@ -317,7 +309,6 @@ app.registerExtension({
         setTimeout(() => {
             hideSlotWidgets(node);
             renderRows(node, root);
-            preview();
             fitNode(node);
         }, 100);
     },
