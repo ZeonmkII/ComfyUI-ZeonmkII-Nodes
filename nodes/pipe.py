@@ -287,8 +287,19 @@ class ZeonmkIIPipeInsert:
             if target == "images":
                 out["images"] = v  # raw pass-through — tensors are never stringified
                 continue
+            # v0.26.2 guard: pipe text fields take TEXT/NUMBER outputs only.
+            # Anything else (MODEL/CLIP objects, lora-state lists…) gets repr'd
+            # into garbage the saver comma-splits into fake checkpoint names —
+            # the "Could not find full path to checkpoint \"(0.4\"" error wall.
+            if not isinstance(v, (str, int, float, bool)):
+                print(f"[ZeonmkII] Pipe Insert: value_{i} is a {type(v).__name__} — pipe fields take text/number outputs only "
+                      f"(wire name/string outputs, not model objects); '{target}' left unchanged")
+                continue
             s = _stringify(v)
             if not isinstance(s, str) or s.strip() == "":
+                continue
+            if " object at 0x" in s:
+                print(f"[ZeonmkII] Pipe Insert: value_{i} stringified to an object repr — skipped, '{target}' left unchanged")
                 continue
             mode = kwargs.get(f"mode_{i}", "replace")
             old = out.get(target)

@@ -94,6 +94,11 @@ def full_checkpoint_path_for(model_name: str) -> str:
     if not model_name:
         return ''
 
+    # v0.26.2: repr garbage (e.g. "<…LoRAAdapter object at 0x…>") is not a
+    # filename — don't scan the model folders, don't spam the console.
+    if " object at " in model_name:
+        return ''
+
     supported_extensions = set(folder_paths.supported_pt_extensions) | {".gguf"}
 
     matching_checkpoint = get_file_path_match("checkpoints", model_name, supported_extensions)
