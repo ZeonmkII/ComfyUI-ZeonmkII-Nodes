@@ -37,11 +37,13 @@ export function ensureStyles() {
   const style = document.createElement("style");
   style.id = STYLE_ID;
   style.textContent = `
-.zeon-toolbar { display:flex; gap:6px; padding:2px 0 4px 0; }
+.zeon-toolbar { display:flex; gap:6px; padding:2px 0 4px 0; width:100%; box-sizing:border-box; }
 .zeon-btn {
-  flex:1 1 auto; padding:4px 8px; border:1px solid ${ZEON.ACCENT_DIM};
+  flex:1 1 0; min-width:0; padding:4px 8px; border:1px solid ${ZEON.ACCENT_DIM};
   border-radius:6px; background:${ZEON.PANEL}; color:${ZEON.TEXT};
   font-size:12px; cursor:pointer;
+  text-align:center; box-sizing:border-box;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
 .zeon-btn:hover { background:${ZEON.ACCENT_DIM}; color:#fff; }
 .zeon-btn:active { background:${ZEON.ACCENT}; border-color:${ZEON.ACCENT}; color:#fff; }

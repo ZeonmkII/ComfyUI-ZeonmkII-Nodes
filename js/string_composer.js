@@ -1,11 +1,12 @@
 /**
- * ComfyUI-ZeonmkII-Nodes — String Composer UI (v0.25.2)
+ * ComfyUI-ZeonmkII-Nodes — String Composer UI (v0.25.3)
  *
- * v0.25.2 fix: v0.25.0's ＋/－ buttons were dead — they mutated a
- * "zeon_slots" counter widget that was never created (find() → undefined,
- * the if-guard swallowed every click). The counter now exists as a real
- * serialized widget (count persists in saved workflows), and the node's
- * height follows the boxes on every refresh.
+ * v0.25.3: v0.25.2's hidden "number" widget fought the frontend's widget
+ * pass — buttons still dead on canvas, and the ghost widget skewed the
+ * toolbar layout on resize. The count now lives in node.properties
+ * (LiteGraph serializes properties natively — saved workflows remember it
+ * with zero hidden widgets), every refresh forces a canvas repaint
+ * (setDirtyCanvas), and the toolbar CSS centers labels + tracks node width.
  *
  * Boss's shape B: one node IS the prompt stack.
  *   - unwired slot → its inline multiline box visible (type the header in)
@@ -68,9 +69,13 @@ function slotIsWired(node, i) {
     return !!(inp && inp.link != null);
 }
 
-function visibleSlotCount(node) {
-    const w = (node.widgets || []).find((w) => w.name === "zeon_slots");
-    let n = w ? Number(w.value) : MIN_SLOTS;
+function slotCount(node) {
+    // v0.25.3: the count lives in node.properties — LiteGraph serializes
+    // properties into saved workflows natively. No hidden widget to fight
+    // the frontend's widget pass (v0.25.2's ghost broke layout + felt dead).
+    if (!node.properties) node.properties = {};
+    let n = Number(node.properties.zeon_slots);
+    if (!Number.isFinite(n)) n = MIN_SLOTS;
     // any wired slot beyond the count is visible on merit
     for (let i = MIN_SLOTS + 1; i <= MAX_SLOTS; i++) if (slotIsWired(node, i)) n = Math.max(n, i);
     return Math.min(MAX_SLOTS, Math.max(MIN_SLOTS, n));
@@ -81,23 +86,13 @@ app.registerExtension({
     nodeCreated(node) {
         if (node.comfyClass !== NODE_CLASS) return;
 
-        // v0.25.2: the slot-count counter — a REAL widget this time. Serialized
-        // + collapsed: invisible on canvas, but the count persists in saved
-        // workflows (widgets_values carries it last, so old workflows load
-        // fine — they just keep the default 3).
-        let counter = (node.widgets || []).find((w) => w.name === "zeon_slots");
-        if (!counter) {
-            counter = node.addWidget("number", "zeon_slots", MIN_SLOTS, () => refresh(), { min: MIN_SLOTS, max: MAX_SLOTS, step: 1 });
-            collapse(counter);
-        }
-
         const band = makeBand(node);
         const toolbar = makeToolbar(node, [
             {
                 label: "＋ slot",
                 title: "grow the stack (max 8)",
                 onClick: () => {
-                    counter.value = Math.min(MAX_SLOTS, Number(counter.value) + 1);
+                    node.properties.zeon_slots = Math.min(MAX_SLOTS, slotCount(node) + 1);
                     refresh();
                 },
             },
@@ -105,24 +100,33 @@ app.registerExtension({
                 label: "－ slot",
                 title: "shrink the stack (min 3; wired slots stay)",
                 onClick: () => {
-                    let n = Number(counter.value) - 1;
+                    let n = slotCount(node) - 1;
                     while (n >= MIN_SLOTS && slotIsWired(node, n + 1)) n--; // never hide a wired slot
-                    counter.value = Math.max(MIN_SLOTS, n);
+                    node.properties.zeon_slots = Math.max(MIN_SLOTS, n);
                     refresh();
                 },
             },
         ]);
-        toolbar.style.order = "-1"; // chips above the boxes
+        // seat the toolbar just under the separator, above the slot boxes
+        // (widgets render in node.widgets order; toolbar/band are DOM widgets
+        // with serialize:false — reordering them never touches widgets_values)
+        const tw = node.widgets.find((w) => w.element === toolbar);
+        const sepIdx = node.widgets.findIndex((w) => w.name === "separator");
+        if (tw && sepIdx >= 0 && node.widgets.indexOf(tw) > sepIdx) {
+            node.widgets.splice(node.widgets.indexOf(tw), 1);
+            node.widgets.splice(sepIdx + 1, 0, tw);
+        }
 
         function refresh() {
-            const count = visibleSlotCount(node);
+            const count = slotCount(node);
             for (let i = 1; i <= MAX_SLOTS; i++) {
                 const w = slotWidget(node, i);
                 if (!w) continue;
                 if (i > count || slotIsWired(node, i)) collapse(w);
                 else reveal(w);
             }
-            node.setSize(node.computeSize()); // v0.25.2: height follows the boxes
+            node.setSize(node.computeSize());                        // height follows the boxes
+            if (app.graph) app.graph.setDirtyCanvas(true, true);     // force the repaint — v0.25.3
             preview();
         }
 
@@ -173,7 +177,11 @@ app.registerExtension({
         const origOnConfigure = node.onConfigure;
         node.onConfigure = function (...args) {
             if (typeof origOnConfigure === "function") origOnConfigure.apply(this, args);
-            requestAnimationFrame(() => { refresh(); node.setSize(node.computeSize()); });
+            requestAnimationFrame(() => {
+                refresh();
+                node.setSize(node.computeSize());
+                if (app.graph) app.graph.setDirtyCanvas(true, true);
+            });
         };
 
         refresh();
