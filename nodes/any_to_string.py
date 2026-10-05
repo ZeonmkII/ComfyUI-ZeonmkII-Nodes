@@ -13,6 +13,22 @@ emits bare NaN for them, and the browser's strict JSON.parse chokes.
 """
 import json
 
+# v0.26.3: silent type probes. Duck-typing via hasattr() pokes the object
+# (ComfyUI's model_config __getattr__ prints a console WARNING per probe of
+# shape/size/mode it lacks) — isinstance() never touches the instance.
+_TORCH_TENSOR = None
+_PIL_IMAGE = None
+try:
+    import torch as _torch
+    _TORCH_TENSOR = _torch.Tensor
+except Exception:
+    pass
+try:
+    from PIL import Image as _PIL_IMAGE_MOD
+    _PIL_IMAGE = _PIL_IMAGE_MOD.Image
+except Exception:
+    pass
+
 _MAX_DEPTH = 8
 
 
@@ -43,15 +59,21 @@ def _stringify(value, depth=0):
         return f"[{body}]" if isinstance(value, list) else f"({body})"
     if isinstance(value, dict) and depth < _MAX_DEPTH:
         return json.dumps(_native(value, depth + 1), ensure_ascii=False)
-    if hasattr(value, "shape"):
+    # v0.26.3: silent probes — isinstance/type only, never hasattr on the
+    # instance (that's what logged "WARNING, you accessed shape from the
+    # model config object…" five times per run on MAGI).
+    cls = type(value)
+    if (_TORCH_TENSOR is not None and isinstance(value, _TORCH_TENSOR)) or (
+        cls.__module__.split(".")[0] == "numpy"
+    ):
         # tensors (torch / numpy): shape summary, never the raw data
         try:
             shape = "\u00d7".join(str(int(s)) for s in value.shape)
             dtype = getattr(value, "dtype", None)
-            return f"[{type(value).__name__} {shape}{' ' + str(dtype) if dtype else ''}]"
+            return f"[{cls.__name__} {shape}{' ' + str(dtype) if dtype else ''}]"
         except Exception:
             pass
-    if hasattr(value, "size") and hasattr(value, "mode"):
+    elif _PIL_IMAGE is not None and isinstance(value, _PIL_IMAGE):
         # PIL image
         try:
             return f"[image {value.size[0]}\u00d7{value.size[1]} {value.mode}]"
