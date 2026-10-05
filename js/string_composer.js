@@ -1,5 +1,11 @@
 /**
- * ComfyUI-ZeonmkII-Nodes — String Composer UI (v0.25.0)
+ * ComfyUI-ZeonmkII-Nodes — String Composer UI (v0.25.2)
+ *
+ * v0.25.2 fix: v0.25.0's ＋/－ buttons were dead — they mutated a
+ * "zeon_slots" counter widget that was never created (find() → undefined,
+ * the if-guard swallowed every click). The counter now exists as a real
+ * serialized widget (count persists in saved workflows), and the node's
+ * height follows the boxes on every refresh.
  *
  * Boss's shape B: one node IS the prompt stack.
  *   - unwired slot → its inline multiline box visible (type the header in)
@@ -75,28 +81,34 @@ app.registerExtension({
     nodeCreated(node) {
         if (node.comfyClass !== NODE_CLASS) return;
 
+        // v0.25.2: the slot-count counter — a REAL widget this time. Serialized
+        // + collapsed: invisible on canvas, but the count persists in saved
+        // workflows (widgets_values carries it last, so old workflows load
+        // fine — they just keep the default 3).
+        let counter = (node.widgets || []).find((w) => w.name === "zeon_slots");
+        if (!counter) {
+            counter = node.addWidget("number", "zeon_slots", MIN_SLOTS, () => refresh(), { min: MIN_SLOTS, max: MAX_SLOTS, step: 1 });
+            collapse(counter);
+        }
+
         const band = makeBand(node);
         const toolbar = makeToolbar(node, [
             {
                 label: "＋ slot",
                 title: "grow the stack (max 8)",
                 onClick: () => {
-                    const w = (node.widgets || []).find((x) => x.name === "zeon_slots");
-                    if (w) { w.value = Math.min(MAX_SLOTS, Number(w.value) + 1); refresh(); }
+                    counter.value = Math.min(MAX_SLOTS, Number(counter.value) + 1);
+                    refresh();
                 },
             },
             {
                 label: "－ slot",
                 title: "shrink the stack (min 3; wired slots stay)",
                 onClick: () => {
-                    const w = (node.widgets || []).find((x) => x.name === "zeon_slots");
-                    if (w) {
-                        let n = Number(w.value) - 1;
-                        while (n >= MIN_SLOTS && slotIsWired(node, n + 1)) n--; // never hide a wired slot
-                        if (n < MIN_SLOTS) n = MIN_SLOTS;
-                        w.value = n;
-                        refresh();
-                    }
+                    let n = Number(counter.value) - 1;
+                    while (n >= MIN_SLOTS && slotIsWired(node, n + 1)) n--; // never hide a wired slot
+                    counter.value = Math.max(MIN_SLOTS, n);
+                    refresh();
                 },
             },
         ]);
@@ -110,6 +122,7 @@ app.registerExtension({
                 if (i > count || slotIsWired(node, i)) collapse(w);
                 else reveal(w);
             }
+            node.setSize(node.computeSize()); // v0.25.2: height follows the boxes
             preview();
         }
 
