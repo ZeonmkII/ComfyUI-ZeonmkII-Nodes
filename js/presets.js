@@ -33,7 +33,9 @@ const KINDS = {
 };
 const KIND_LABEL = { lora_stack: "LoRA stack", charswap: "Character Swap" };
 const ACCENT = "#A20000";
-const BTN_W = 18, BTN_H = 18, GAP = 3, RIGHT_PAD = 34; // clear of the frontend's title-right mode chip
+// v0.35.2 (Boss field report): top-right collided with the output pins' corner
+// — buttons now sit CENTERED on the title bar. Ugly but easy to see, his call.
+const BTN_W = 18, BTN_H = 18, GAP = 3;
 
 function kindOf(node) {
   return KINDS[node?.comfyClass] || KINDS[node?.type] || null;
@@ -46,10 +48,10 @@ function nodeReady(node, kind) {
 // ── corner buttons (title bar, node-local coords: y 0 = top of title) ──────
 function buttonRects(node) {
   const w = node.size?.[0] || 320;
-  const x2 = w - RIGHT_PAD; // right edge of the LOAD button
+  const x0 = (w - (BTN_W * 2 + GAP)) / 2; // centered pair on the title bar
   return {
-    save: [x2 - BTN_W * 2 - GAP, 5, BTN_W, BTN_H],
-    load: [x2 - BTN_W, 5, BTN_W, BTN_H],
+    save: [x0, 5, BTN_W, BTN_H],
+    load: [x0 + BTN_W + GAP, 5, BTN_W, BTN_H],
   };
 }
 function inRect(pos, r) {
@@ -338,7 +340,7 @@ function patchNodeType(nodeType) {
 app.registerExtension({
   name: "ZeonmkII.Presets",
   setup() {
-    console.info("[zeonmkii] presets online v0.35.1 (loader + charswap)");
+    console.info("[zeonmkii] presets online v0.35.2 (loader + charswap)");
   },
   beforeRegisterNodeDef(nodeType, nodeData) {
     if (!KINDS[nodeData?.name]) return;
