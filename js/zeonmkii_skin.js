@@ -192,6 +192,10 @@ const ZEON_CLASSES = new Set([
   "ZeonmkII Pipe Insert",
   "ZeonmkII String",
   "ZeonmkII String Composer",
+  "ZeonmkII INT",
+  "ZeonmkII FLOAT",
+  "ZeonmkII Sampler Selector",
+  "ZeonmkII Scheduler Selector",
   "ZeonmkII Resolution",
   "ZeonmkII Run Timer",
   "ZeonmkII Save Image",
@@ -209,7 +213,7 @@ function walkZeonNodes(graph, fn) {
 app.registerExtension({
   name: "ComfyUI-ZeonmkII-Nodes.Skin",
   setup() {
-    console.info("[zeonmkii] skin online v0.15.5");
+    console.info("[zeonmkii] skin online v0.15.6 (INT/FLOAT/selectors added)");
   },
   nodeCreated(node) {
     if (!ZEON_CLASSES.has(node.comfyClass)) return;

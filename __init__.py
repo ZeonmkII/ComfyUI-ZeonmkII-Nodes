@@ -1,12 +1,13 @@
 """
 @author: ZeonmkII
 @title: ComfyUI-ZeonmkII-Nodes
-@version: 0.31.0
+@version: 0.32.0
 @project: https://github.com/ZeonmkII/ComfyUI-ZeonmkII-Nodes
 @description: Utility-layer nodes for ComfyUI — character swapping, prompt
 tooling, timers, Krea 2 resolution presets, native-parity
 image saving, multi-LoRA loading, XY comparison grids with sweep-respecting
-generators, a global seed, seeded wildcard expansion, and workflow glue that never
+generators, a global seed, seeded wildcard expansion, typed literal and
+selector nodes, and workflow glue that never
 touch the inference path.
 Model-agnostic by design: works the same on SDXL, Krea 2, Z-Image and
 whatever ships next.
@@ -35,6 +36,7 @@ from .nodes.model_name import ZeonmkIIModelName
 from .nodes.input_value import ZeonmkIIInputValue
 from .nodes.pipe import ZeonmkIIPipeIn, ZeonmkIIPipeOut, ZeonmkIIPipeEdit, ZeonmkIIPipeInit, ZeonmkIIPipeInsert
 from .nodes.text_blocks import ZeonmkIIString, ZeonmkIIStringComposer
+from .nodes.literals import ZeonmkIIInt, ZeonmkIIFloat, ZeonmkIISamplerSelector, ZeonmkIISchedulerSelector
 from .nodes.resolution import ZeonmkIIResolution
 from .nodes.run_timer import ZeonmkIIRunTimer
 
@@ -84,6 +86,10 @@ NODE_CLASS_MAPPINGS = {
     "ZeonmkII Pipe Insert": ZeonmkIIPipeInsert,
     "ZeonmkII String": ZeonmkIIString,
     "ZeonmkII String Composer": ZeonmkIIStringComposer,
+    "ZeonmkII INT": ZeonmkIIInt,
+    "ZeonmkII FLOAT": ZeonmkIIFloat,
+    "ZeonmkII Sampler Selector": ZeonmkIISamplerSelector,
+    "ZeonmkII Scheduler Selector": ZeonmkIISchedulerSelector,
     "ZeonmkII Resolution": ZeonmkIIResolution,
     "ZeonmkII Run Timer": ZeonmkIIRunTimer,
     "ZeonmkII Save Image": ZeonmkIISaveImage,
@@ -108,6 +114,10 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ZeonmkII Pipe Insert": "➕ Pipe Insert ZeonmkII",
     "ZeonmkII String": "✍️ String ZeonmkII",
     "ZeonmkII String Composer": "🧵 String Composer ZeonmkII",
+    "ZeonmkII INT": "🔢 INT ZeonmkII",
+    "ZeonmkII FLOAT": "〰️ FLOAT ZeonmkII",
+    "ZeonmkII Sampler Selector": "🎛 Sampler Selector ZeonmkII",
+    "ZeonmkII Scheduler Selector": "🕒 Scheduler Selector ZeonmkII",
     "Load Random Image ZeonmkII": "🎲 Load Random Image ZeonmkII",
     "Load Random Prompt ZeonmkII": "🎲 Load Random Prompt ZeonmkII",
     "ZeonmkII Global Seed": "🌱 Global Seed ZeonmkII",

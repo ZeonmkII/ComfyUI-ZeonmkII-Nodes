@@ -13,6 +13,8 @@ Custom nodes for [ComfyUI](https://github.com/comfyanonymous/ComfyUI) by ZeonmkI
 | 📐 **Resolution** | Krea-2-style resolution presets as horizontal chip rows — orientation, ratio families, base sizes, live pixel readout. |
 | ⏱ **Run Timer** | Wall-clock run timer with running / done / error states, CRT-style digits. |
 | 💾 **Save Image** | Full [comfy-image-saver](https://github.com/girishgopaul/comfy-image-saver) parity — every field a native, hand-editable widget — plus a native OS folder-browse dialog and live filename preview. |
+| 🔢 **INT** / 〰️ **FLOAT** | Tiny typed literal boxes (ComfyLiterals style) — step-tamed decimal display, no exponent soup. One wire into any INT/FLOAT input. |
+| 🎛 **Sampler Selector** / 🕒 **Scheduler Selector** | Name-only dropdowns (comfy-image-saver style) — STRING out into the saver's sampler/scheduler metadata slots or KSampler via convert-to-input. |
 
 ## Install
 
