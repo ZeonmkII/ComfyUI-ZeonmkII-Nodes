@@ -1,7 +1,7 @@
 """
 @author: ZeonmkII
 @title: ComfyUI-ZeonmkII-Nodes
-@version: 0.33.0
+@version: 0.34.0
 @project: https://github.com/ZeonmkII/ComfyUI-ZeonmkII-Nodes
 @description: Utility-layer nodes for ComfyUI — character swapping, prompt
 tooling, timers, Krea 2 resolution presets, native-parity
@@ -31,7 +31,6 @@ from .nodes.global_seed import ZeonmkIIGlobalSeed
 from .nodes.wildcard_expand import ZeonmkIIWildcardExpand
 from .nodes.any_to_string import ZeonmkIIAnyToString
 from .nodes.read_metadata import ZeonmkIIReadMetadata
-from .nodes.manifest import ZeonmkIIManifest, ZeonmkIIManifestExpand
 from .nodes.model_name import ZeonmkIIModelName
 from .nodes.input_value import ZeonmkIIInputValue
 from .nodes.pipe import ZeonmkIIPipeIn, ZeonmkIIPipeOut, ZeonmkIIPipeEdit, ZeonmkIIPipeInit, ZeonmkIIPipeInsert
@@ -77,8 +76,6 @@ NODE_CLASS_MAPPINGS = {
     "ZeonmkII Model Name": ZeonmkIIModelName,
     "ZeonmkII Input Watcher": ZeonmkIIInputValue,
     "ZeonmkII Read Metadata": ZeonmkIIReadMetadata,
-    "ZeonmkII Manifest": ZeonmkIIManifest,
-    "ZeonmkII Manifest Expand": ZeonmkIIManifestExpand,
     "ZeonmkII Pipe In": ZeonmkIIPipeIn,
     "ZeonmkII Pipe Out": ZeonmkIIPipeOut,
     "ZeonmkII Pipe Edit": ZeonmkIIPipeEdit,
@@ -105,8 +102,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ZeonmkII Model Name": "🏷️ Model Name ZeonmkII",
     "ZeonmkII Input Watcher": "🔭 Input Watcher ZeonmkII",
     "ZeonmkII Read Metadata": "🧾 Read Metadata ZeonmkII",
-    "ZeonmkII Manifest": "📦 Manifest ZeonmkII",
-    "ZeonmkII Manifest Expand": "📤 Manifest Expand ZeonmkII",
     "ZeonmkII Pipe In": "🔌 Pipe In ZeonmkII",
     "ZeonmkII Pipe Out": "📤 Pipe Out ZeonmkII",
     "ZeonmkII Pipe Edit": "✏️ Pipe Edit ZeonmkII",

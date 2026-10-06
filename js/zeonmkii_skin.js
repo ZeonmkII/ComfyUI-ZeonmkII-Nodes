@@ -183,8 +183,6 @@ const ZEON_CLASSES = new Set([
   "ZeonmkII Model Name",
   "ZeonmkII Input Watcher",
   "ZeonmkII Read Metadata",
-  "ZeonmkII Manifest",
-  "ZeonmkII Manifest Expand",
   "ZeonmkII Pipe In",
   "ZeonmkII Pipe Out",
   "ZeonmkII Pipe Edit",
