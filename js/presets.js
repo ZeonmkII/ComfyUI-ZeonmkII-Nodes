@@ -1,29 +1,34 @@
-// ZeonmkII Presets — corner save/load for the two complex nodes (v0.35.0).
+// ZeonmkII Presets — save/load for the two complex nodes (v0.35.3).
 //
-// Boss's spec (Oct 3): a small button at the corner (not pushing any existing
-// elements away) that saves the node's config under a user-chosen name, and a
-// load button that picks it back. Kills backup-clone nodes.
+// Boss's spec (Oct 3): a small button (not pushing any existing elements away)
+// that saves the node's config under a user-chosen name, and a load button
+// that picks it back. Kills backup-clone nodes.
 //
-// Shape, per the pack's own laws:
-// - The node BODY is fully covered by each node's hosted DOM widget, so the
-//   only DOM-free canvas zone is the TITLE BAR. The two buttons are drawn on
-//   the canvas there (onDrawForeground), hit-tested in onMouseDown — and the
-//   right-click menu carries "Save preset… / Load preset…" as the guaranteed
-//   path (the same getMenuItems route the Loader's settings entry uses).
-// - Save/Load dialogs port interaction.mjs's openRowMenu pattern: fixed-
-//   position card on <body>, Escape + outside-pointerdown close, capture-phase
-//   listeners attached on a setTimeout(0) guard so a same-tick close can never
-//   strand them.
-// - WHAT gets saved follows each node's own architecture: the Loader is
-//   state-driven (node.properties.loraLoaderState via core.mjs's read/write,
-//   normalize() runs on the way back in — the same guard every mutation uses);
-//   CharSwap's values live in its native widgets, so its preset is widget
-//   values BY NAME — the exact path the v0.3.0 restore guard trusts, and the
-//   value interceptors auto-repaint rows/band on every write.
-// - All fetches go through zeonApiUrl (hosted-ComfyUI law).
+// Button placement history (field reports from Y520):
+// - v0.35.0: canvas-drawn on the title-bar top-right — half-covered by the
+//   output pins' corner zone.
+// - v0.35.2: centered on the title bar — fine on CharSwap, but on the LoRAs
+//   Loader it landed under its own red header DOM ("big red button covering
+//   the icons completely").
+// - v0.35.3 (Boss's call): "make an empty space at the very bottom of the
+//   nodes (one line) and add the icons on bottom right". So the buttons are
+//   now a REAL DOM row pinned to the bottom — right-aligned, one line tall —
+//   using the pack's proven .zeon-toolbar/.zeon-btn styles. DOM buttons are
+//   the pack's proven click path (chips, loader header); no canvas hit-test
+//   anywhere. The widget is added in a queueMicrotask AFTER nodeCreated, so
+//   it lands after every other widget (true bottom) and never touches the
+//   positional value-restore window (serialize:false, added post-configure).
+//
+// WHAT gets saved follows each node's own architecture: the Loader is
+// state-driven (node.properties.loraLoaderState via core.mjs's read/write,
+// normalize() runs on the way back in — the same guard every mutation uses);
+// CharSwap's values live in its native widgets, so its preset is widget
+// values BY NAME — the exact path the v0.3.0 restore guard trusts, and the
+// value interceptors auto-repaint rows/band on every write.
+// All fetches go through zeonApiUrl (hosted-ComfyUI law).
 import { app } from "/scripts/app.js";
 import { zeonApiUrl } from "./shared/api_url.mjs";
-import { isGraphLoading } from "./shared/graph_loading.mjs";
+import { ensureStyles } from "./zeonmkii_skin.js";
 import { readState, writeState } from "./lora_loader/core.mjs";
 import { renderNode } from "./lora_loader/render.mjs";
 
@@ -33,9 +38,6 @@ const KINDS = {
 };
 const KIND_LABEL = { lora_stack: "LoRA stack", charswap: "Character Swap" };
 const ACCENT = "#A20000";
-// v0.35.2 (Boss field report): top-right collided with the output pins' corner
-// — buttons now sit CENTERED on the title bar. Ugly but easy to see, his call.
-const BTN_W = 18, BTN_H = 18, GAP = 3;
 
 function kindOf(node) {
   return KINDS[node?.comfyClass] || KINDS[node?.type] || null;
@@ -43,34 +45,6 @@ function kindOf(node) {
 function nodeReady(node, kind) {
   // Only act on nodes whose UI actually built (loader root / charswap root).
   return kind === "lora_stack" ? !!node._pixLlRoot : !!node._zeonCsRoot;
-}
-
-// ── corner buttons (title bar, node-local coords: y 0 = top of title) ──────
-function buttonRects(node) {
-  const w = node.size?.[0] || 320;
-  const x0 = (w - (BTN_W * 2 + GAP)) / 2; // centered pair on the title bar
-  return {
-    save: [x0, 5, BTN_W, BTN_H],
-    load: [x0 + BTN_W + GAP, 5, BTN_W, BTN_H],
-  };
-}
-function inRect(pos, r) {
-  return !!pos && pos[0] >= r[0] && pos[0] <= r[0] + r[2] &&
-         pos[1] >= r[1] && pos[1] <= r[1] + r[3];
-}
-function drawCornerButtons(node, ctx) {
-  const r = buttonRects(node);
-  ctx.save();
-  ctx.font = "12px 'Segoe UI', system-ui, sans-serif";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  for (const [rect, glyph] of [[r.save, "💾"], [r.load, "📂"]]) {
-    ctx.fillStyle = "rgba(0,0,0,0.30)";
-    ctx.fillRect(rect[0], rect[1], rect[2], rect[3]);
-    ctx.fillStyle = "#f2f0ee";
-    ctx.fillText(glyph, rect[0] + rect[2] / 2, rect[1] + rect[3] / 2 + 0.5);
-  }
-  ctx.restore();
 }
 
 // Where the dialogs appear: the last physical click, tracked globally —
@@ -110,7 +84,7 @@ function applyState(node, kind, state) {
     // By-name writes: the value interceptors repaint band + rows, and writing
     // char_count LAST means the final pass is the structural one (rows fit).
     const entries = Object.entries(state);
-    entries.sort((a, _b) => (a[0] === "char_count" ? 1 : 0) - (_b0(_b) ? 1 : 0));
+    entries.sort((a, b) => _b0(a) - _b0(b));
     for (const [k, v] of entries) {
       const w = (node.widgets || []).find((x) => x?.name === k);
       if (w) w.value = v;
@@ -119,7 +93,7 @@ function applyState(node, kind, state) {
   }
   node.setDirtyCanvas?.(true, true);
 }
-function _b0(entry) { return entry[0] === "char_count"; }
+function _b0(entry) { return entry[0] === "char_count" ? 1 : 0; }
 
 // ── dialogs (openRowMenu pattern, ported) ──────────────────────────────────
 let _dlg = null;
@@ -313,38 +287,51 @@ async function presetLoadFlow(node) {
 }
 
 // ── wiring ──────────────────────────────────────────────────────────────────
-function patchNodeType(nodeType) {
-  if (nodeType.prototype._zeonPresetPatched) return;
-  nodeType.prototype._zeonPresetPatched = true;
-
-  const _origDraw = nodeType.prototype.onDrawForeground;
-  nodeType.prototype.onDrawForeground = function (ctx) {
-    const r = _origDraw?.apply(this, arguments);
-    try { drawCornerButtons(this, ctx); } catch {}
-    return r;
+function injectToolbar(node, kind) {
+  ensureStyles();
+  const root = document.createElement("div");
+  root.className = "zeon-toolbar"; // pack's own toolbar styles — right-aligned icons
+  root.style.justifyContent = "flex-end";
+  const mk = (label, title, cb) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "zeon-btn";
+    b.textContent = label;
+    b.title = title;
+    b.style.flex = "0 0 auto"; // icon-sized, not full-width halves
+    b.style.padding = "3px 10px";
+    b.addEventListener("click", (ev) => { ev.stopPropagation(); cb(); });
+    root.appendChild(b);
   };
-
-  const _origDown = nodeType.prototype.onMouseDown;
-  nodeType.prototype.onMouseDown = function (e, pos) {
-    try {
-      if (!isGraphLoading() && kindOf(this)) {
-        const r = buttonRects(this);
-        if (inRect(pos, r.save)) { presetSaveFlow(this); return true; }
-        if (inRect(pos, r.load)) { presetLoadFlow(this); return true; }
-      }
-    } catch {}
-    return _origDown?.apply(this, arguments);
-  };
+  mk("💾", "Save this config as a preset", () => presetSaveFlow(node));
+  mk("📂", "Load a saved preset", () => presetLoadFlow(node));
+  const w = node.addDOMWidget("zeon_presets_row", "zeonmkii/presets", root, {
+    serialize: false,                 // pure UI — never touches saved values
+    getMinHeight: () => 30,           // constant — DOM-widget law, never measure
+  });
+  w.serialize = false;
 }
 
 app.registerExtension({
   name: "ZeonmkII.Presets",
   setup() {
-    console.info("[zeonmkii] presets online v0.35.2 (loader + charswap)");
+    console.info("[zeonmkii] presets online v0.35.3 (loader + charswap)");
   },
-  beforeRegisterNodeDef(nodeType, nodeData) {
-    if (!KINDS[nodeData?.name]) return;
-    patchNodeType(nodeType);
+  nodeCreated(node) {
+    const kind = kindOf(node);
+    if (!kind) return;
+    // AFTER nodeCreated of every extension: the row lands at the true bottom
+    // and post-configure, so the positional value-restore window is untouched.
+    queueMicrotask(() => {
+      if (!node.graph || kindOf(node) !== kind) return; // deleted / type mismatch
+      try {
+        injectToolbar(node, kind);
+        const cs = node.computeSize?.();
+        if (cs && cs[1] > 0 && node.setSize) {
+          node.setSize([node.size?.[0] || node.size[0], Math.max(node.size?.[1] || 0, Math.round(cs[1]))]);
+        }
+      } catch (_e) { /* a missing toolbar row must never break the node */ }
+    });
   },
   getNodeMenuItems(node) {
     const kind = kindOf(node);
