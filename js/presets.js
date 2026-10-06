@@ -299,7 +299,10 @@ function injectToolbar(node, kind) {
     b.textContent = label;
     b.title = title;
     b.style.flex = "0 0 auto"; // icon-sized, not full-width halves
-    b.style.padding = "3px 10px";
+    b.style.padding = "5px 12px";
+    b.style.fontSize = "14px";
+    b.style.lineHeight = "1.2";   // emoji needs vertical room — v0.35.4 clipped its top
+    b.style.overflow = "visible";
     b.addEventListener("click", (ev) => { ev.stopPropagation(); cb(); });
     root.appendChild(b);
   };
@@ -307,7 +310,7 @@ function injectToolbar(node, kind) {
   mk("📂", "Load a saved preset", () => presetLoadFlow(node));
   const w = node.addDOMWidget("zeon_presets_row", "zeonmkii/presets", root, {
     serialize: false,                 // pure UI — never touches saved values
-    getMinHeight: () => 30,           // constant — DOM-widget law, never measure
+    getMinHeight: () => 38,           // constant — DOM-widget law, never measure
   });
   w.serialize = false;
 }
@@ -315,7 +318,7 @@ function injectToolbar(node, kind) {
 app.registerExtension({
   name: "ZeonmkII.Presets",
   setup() {
-    console.info("[zeonmkii] presets online v0.35.3 (loader + charswap)");
+    console.info("[zeonmkii] presets online v0.35.4 (loader + charswap)");
   },
   nodeCreated(node) {
     const kind = kindOf(node);
