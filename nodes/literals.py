@@ -1,4 +1,4 @@
-"""ZeonmkII typed literals + selectors (v0.32.0) — the KSampler plug kit.
+"""ZeonmkII typed literals + selectors (v0.32.1) — the KSampler plug kit.
 
 Boss spec (Oct 5, item [3]): small, unbloated value nodes to wire into
 KSampler and the saver —
@@ -6,9 +6,9 @@ KSampler and the saver —
     renders small values as exponent soup (1e-7, single exponent digit) —
     a declared step of 0.01 keeps the box decimal forever.
   • Sampler / Scheduler Selector, comfy-image-saver style: name-only
-    dropdowns whose STRING output feeds the saver's sampler_name /
-    scheduler_name STRING slots directly, and KSampler after a stock
-    convert-to-input — the same wiring Model Name already proven.
+    dropdowns whose COMBO-typed output drives real KSampler nodes
+    (converted inputs) and still feeds the saver's sampler_name /
+    scheduler_name STRING slots directly.
 
 Native widgets only — no JS, no DOM hosting, nothing that can crash a
 frontend. Lists are read live from the running ComfyUI with a static
@@ -34,15 +34,17 @@ _FALLBACK_SCHEDULERS = [
 
 
 def _sampler_names() -> list:
-    """Live sampler list from the running ComfyUI, static fallback last."""
+    """Live sampler list from the running ComfyUI, static fallback last.
+    KSampler.SAMPLERS first — it is the exact list KSampler's own combo
+    shows, so dropdown and wire type can never drift."""
     try:
         import comfy.samplers
-        names = getattr(comfy.samplers, "SAMPLER_NAMES", None)
-        if names:
-            return list(names)
         ks = getattr(comfy.samplers, "KSampler", None)
         if ks is not None and getattr(ks, "SAMPLERS", None):
             return list(ks.SAMPLERS)
+        names = getattr(comfy.samplers, "SAMPLER_NAMES", None)
+        if names:
+            return list(names)
     except Exception:
         pass
     try:
@@ -55,15 +57,16 @@ def _sampler_names() -> list:
 
 
 def _scheduler_names() -> list:
-    """Live scheduler list from the running ComfyUI, static fallback last."""
+    """Live scheduler list from the running ComfyUI, static fallback last.
+    KSampler.SCHEDULERS first — same no-drift reasoning as samplers."""
     try:
         import comfy.samplers
-        names = getattr(comfy.samplers, "SCHEDULER_NAMES", None)
-        if names:
-            return list(names)
         ks = getattr(comfy.samplers, "KSampler", None)
         if ks is not None and getattr(ks, "SCHEDULERS", None):
             return list(ks.SCHEDULERS)
+        names = getattr(comfy.samplers, "SCHEDULER_NAMES", None)
+        if names:
+            return list(names)
     except Exception:
         pass
     try:
@@ -73,6 +76,17 @@ def _scheduler_names() -> list:
     except Exception:
         pass
     return list(_FALLBACK_SCHEDULERS)
+
+
+# Combo-typed outputs (Boss 10:02): the selectors also drive real KSampler
+# nodes, so the wire must BE the combo type — RETURN_TYPES carries the list
+# itself (the comfy-image-saver pattern). A combo output still feeds STRING
+# inputs (the saver's slots), but now it plugs into KSampler's sampler /
+# scheduler combo inputs with a proper type match too. Baked at import from
+# the same source as the dropdown, so the two can never drift; a restart
+# refreshes both.
+SAMPLER_COMBO = _sampler_names()
+SCHEDULER_COMBO = _scheduler_names()
 
 
 class ZeonmkIIInt:
@@ -126,22 +140,22 @@ class ZeonmkIIFloat:
 class ZeonmkIISamplerSelector:
     @classmethod
     def INPUT_TYPES(cls) -> dict:
-        names = _sampler_names()
+        names = list(SAMPLER_COMBO)
         return {
             "required": {
                 "sampler_name": (names, {
                     "default": names[0] if names else "euler",
-                    "tooltip": "name-only picker — STRING out, straight into the saver's sampler_name or KSampler (convert to input)",
+                    "tooltip": "name-only picker — combo wire into KSampler (convert to input), or straight into the saver's sampler_name",
                 }),
             },
         }
 
-    RETURN_TYPES = ("STRING",)
+    RETURN_TYPES = (SAMPLER_COMBO,)
     RETURN_NAMES = ("sampler_name",)
-    OUTPUT_TOOLTIPS = ("the sampler name — feeds Save Image metadata directly, KSampler after convert-to-input",)
+    OUTPUT_TOOLTIPS = ("the sampler name — combo wire for KSampler, also feeds Save Image metadata's string slot",)
     FUNCTION = "pick"
     CATEGORY = "ZeonmkII"
-    DESCRIPTION = "The dropdown KSampler shows, as a wire (comfy-image-saver pattern)"
+    DESCRIPTION = "The dropdown KSampler shows, as a combo wire (comfy-image-saver pattern)"
 
     def pick(self, sampler_name: str) -> tuple:
         return (sampler_name,)
@@ -150,22 +164,22 @@ class ZeonmkIISamplerSelector:
 class ZeonmkIISchedulerSelector:
     @classmethod
     def INPUT_TYPES(cls) -> dict:
-        names = _scheduler_names()
+        names = list(SCHEDULER_COMBO)
         return {
             "required": {
                 "scheduler_name": (names, {
                     "default": names[0] if names else "normal",
-                    "tooltip": "name-only picker — STRING out, straight into the saver's scheduler_name or KSampler (convert to input)",
+                    "tooltip": "name-only picker — combo wire into KSampler (convert to input), or straight into the saver's scheduler_name",
                 }),
             },
         }
 
-    RETURN_TYPES = ("STRING",)
+    RETURN_TYPES = (SCHEDULER_COMBO,)
     RETURN_NAMES = ("scheduler_name",)
-    OUTPUT_TOOLTIPS = ("the scheduler name — feeds Save Image metadata directly, KSampler after convert-to-input",)
+    OUTPUT_TOOLTIPS = ("the scheduler name — combo wire for KSampler, also feeds Save Image metadata's string slot",)
     FUNCTION = "pick"
     CATEGORY = "ZeonmkII"
-    DESCRIPTION = "The dropdown KSampler shows, as a wire (comfy-image-saver pattern)"
+    DESCRIPTION = "The dropdown KSampler shows, as a combo wire (comfy-image-saver pattern)"
 
     def pick(self, scheduler_name: str) -> tuple:
         return (scheduler_name,)
