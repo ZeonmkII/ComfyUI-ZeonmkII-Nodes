@@ -338,7 +338,7 @@ function patchNodeType(nodeType) {
 app.registerExtension({
   name: "ZeonmkII.Presets",
   setup() {
-    console.info("[zeonmkii] presets online v0.35.0 (loader + charswap)");
+    console.info("[zeonmkii] presets online v0.35.1 (loader + charswap)");
   },
   beforeRegisterNodeDef(nodeType, nodeData) {
     if (!KINDS[nodeData?.name]) return;
