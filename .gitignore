@@ -5,3 +5,6 @@ __pycache__/
 # user wildcard files — machine-local, never committed
 wildcards/*
 !wildcards/README.md
+
+# user preset files (PRESETS feature) — machine-local, never committed
+user/

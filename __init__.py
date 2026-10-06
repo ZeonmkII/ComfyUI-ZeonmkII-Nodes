@@ -1,7 +1,7 @@
 """
 @author: ZeonmkII
 @title: ComfyUI-ZeonmkII-Nodes
-@version: 0.34.0
+@version: 0.35.0
 @project: https://github.com/ZeonmkII/ComfyUI-ZeonmkII-Nodes
 @description: Utility-layer nodes for ComfyUI — character swapping, prompt
 tooling, timers, Krea 2 resolution presets, native-parity
@@ -63,6 +63,11 @@ try:
     from .nodes import _xy_routes  # noqa: F401 - registers the /zeonmkii/api/xy_plot/* save routes
 except Exception as _e:
     print(f"[ZeonmkII] xy plot routes not registered: {_e}")
+
+try:
+    from .nodes import _preset_routes  # noqa: F401 - registers the /zeonmkii/api/presets/* routes
+except Exception as _e:
+    print(f"[ZeonmkII] preset routes not registered: {_e}")
 
 NODE_CLASS_MAPPINGS = {
     "ZeonmkII Character Swap": ZeonmkIICharacterSwap,
