@@ -1,4 +1,4 @@
-"""ZeonmkII typed literals + selectors (v0.32.1) — the KSampler plug kit.
+"""ZeonmkII typed literals + selectors (v0.32.2) — the KSampler plug kit.
 
 Boss spec (Oct 5, item [3]): small, unbloated value nodes to wire into
 KSampler and the saver —
@@ -10,11 +10,15 @@ KSampler and the saver —
     (converted inputs) and still feeds the saver's sampler_name /
     scheduler_name STRING slots directly.
 
-Native widgets only — no JS, no DOM hosting, nothing that can crash a
-frontend. Lists are read live from the running ComfyUI with a static
-fallback so the module imports anywhere (tests included).
+v0.32.2 (Boss 11:00 field report): the selectors hand around comfy's LIVE
+list objects — zero copies, zero snapshots. Pack-added samplers/schedulers
+(RES4LYF & friends append to comfy's lists at THEIR import time, after we
+load) stay visible on our dropdown AND our wire, because we never bake a
+frozen copy. v0.32.1's import-time snapshot is the regression this fixes.
 
-No IS_CHANGED, no overrides — NaN-carrier doctrine (see any_to_string).
+Native widgets only — no JS, no DOM hosting, nothing that can crash a
+frontend. A static fallback keeps the module importable anywhere
+(tests included). No IS_CHANGED, no overrides — NaN-carrier doctrine.
 """
 
 _INT_MIN = -(2 ** 31)
@@ -33,60 +37,62 @@ _FALLBACK_SCHEDULERS = [
 ]
 
 
-def _sampler_names() -> list:
-    """Live sampler list from the running ComfyUI, static fallback last.
-    KSampler.SAMPLERS first — it is the exact list KSampler's own combo
-    shows, so dropdown and wire type can never drift."""
+def _live_samplers():
+    """The LIVE sampler list object from the running ComfyUI — never copied.
+
+    Holding the list itself (not a snapshot) means entries appended later by
+    other packs appear here too. KSampler.SAMPLERS is the exact object core
+    KSampler's own combo shows. Static fallback keeps imports alive outside
+    ComfyUI."""
     try:
         import comfy.samplers
         ks = getattr(comfy.samplers, "KSampler", None)
         if ks is not None and getattr(ks, "SAMPLERS", None):
-            return list(ks.SAMPLERS)
+            return ks.SAMPLERS
         names = getattr(comfy.samplers, "SAMPLER_NAMES", None)
         if names:
-            return list(names)
+            return names
     except Exception:
         pass
     try:
         from nodes import KSampler
         if getattr(KSampler, "SAMPLERS", None):
-            return list(KSampler.SAMPLERS)
+            return KSampler.SAMPLERS
     except Exception:
         pass
-    return list(_FALLBACK_SAMPLERS)
+    return _FALLBACK_SAMPLERS
 
 
-def _scheduler_names() -> list:
-    """Live scheduler list from the running ComfyUI, static fallback last.
-    KSampler.SCHEDULERS first — same no-drift reasoning as samplers."""
+def _live_schedulers():
+    """The LIVE scheduler list object — same no-snapshot law as samplers."""
     try:
         import comfy.samplers
         ks = getattr(comfy.samplers, "KSampler", None)
         if ks is not None and getattr(ks, "SCHEDULERS", None):
-            return list(ks.SCHEDULERS)
+            return ks.SCHEDULERS
         names = getattr(comfy.samplers, "SCHEDULER_NAMES", None)
         if names:
-            return list(names)
+            return names
     except Exception:
         pass
     try:
         from nodes import KSampler
         if getattr(KSampler, "SCHEDULERS", None):
-            return list(KSampler.SCHEDULERS)
+            return KSampler.SCHEDULERS
     except Exception:
         pass
-    return list(_FALLBACK_SCHEDULERS)
+    return _FALLBACK_SCHEDULERS
 
 
-# Combo-typed outputs (Boss 10:02): the selectors also drive real KSampler
-# nodes, so the wire must BE the combo type — RETURN_TYPES carries the list
-# itself (the comfy-image-saver pattern). A combo output still feeds STRING
-# inputs (the saver's slots), but now it plugs into KSampler's sampler /
-# scheduler combo inputs with a proper type match too. Baked at import from
-# the same source as the dropdown, so the two can never drift; a restart
-# refreshes both.
-SAMPLER_COMBO = _sampler_names()
-SCHEDULER_COMBO = _scheduler_names()
+# Combo-typed outputs: RETURN_TYPES carries the LIVE list object itself
+# (the comfy-image-saver pattern, v0.32.1) — now with the no-snapshot law
+# (v0.32.2). Resolved once at import for the class attribute, re-resolved
+# fresh at every INPUT_TYPES call (schema build happens after ALL packs
+# have loaded, so fresh resolves catch every pack's additions — and a
+# browser refresh re-runs it). A combo output still feeds STRING inputs
+# (the saver's slots).
+SAMPLER_COMBO = _live_samplers()
+SCHEDULER_COMBO = _live_schedulers()
 
 
 class ZeonmkIIInt:
@@ -140,7 +146,7 @@ class ZeonmkIIFloat:
 class ZeonmkIISamplerSelector:
     @classmethod
     def INPUT_TYPES(cls) -> dict:
-        names = list(SAMPLER_COMBO)
+        names = _live_samplers()
         return {
             "required": {
                 "sampler_name": (names, {
@@ -164,7 +170,7 @@ class ZeonmkIISamplerSelector:
 class ZeonmkIISchedulerSelector:
     @classmethod
     def INPUT_TYPES(cls) -> dict:
-        names = list(SCHEDULER_COMBO)
+        names = _live_schedulers()
         return {
             "required": {
                 "scheduler_name": (names, {
