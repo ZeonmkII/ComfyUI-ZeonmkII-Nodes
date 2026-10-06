@@ -10,6 +10,11 @@ layout), clean-room per the 2026-10-05 design session:
     unchanged). Chosen lines may themselves contain braces or further
     __refs__ — resolution keeps going until stable.
   • comments (#) and blank lines in wildcard files are skipped
+  • weights (v0.33.0, Boss 11:28 — his prompts already carry the syntax):
+    {2::a | b} or {2::a | 3::b} — per-option N:: prefix (Dynamic Prompts
+    style, positive int/float, default 1). Weight 0 never picks; all-zero
+    falls back uniform. File-picked lines re-enter resolution, so weighted
+    braces inside wildcard files work too.
 
 Same law as the rest of the pack: a pure function of (text, seed). It is
 stateless — no disk cache, nothing advances — so XY sweeps freeze it for
@@ -34,6 +39,9 @@ _MAX_PASSES = 32
 _RE_REF = re.compile(r"__((?:[^_]|_(?!_))+?)__")
 # Innermost { ... } — a brace group containing no other brace group.
 _RE_INNERMOST = re.compile(r"\{([^{}]*)\}")
+# Per-option weight prefix: "2::option" (positive int/float, Dynamic
+# Prompts style). Matched at option-parse time; default weight is 1.
+_RE_WEIGHT = re.compile(r"^(\d+(?:\.\d+)?)::\s*")
 
 
 def _wildcard_roots():
@@ -109,7 +117,7 @@ class ZeonmkIIWildcardExpand:
                     "multiline": True,
                     "default": "",
                     "placeholder": "photo of { a woman | a man } in __location__",
-                    "tooltip": "Text with { a | b } choices and/or __wildcard__ references (one random line each). Nesting works; the seed decides every pick.",
+                    "tooltip": "Text with { a | b } choices and/or __wildcard__ references (one random line each). Weights work: {2::a | b} picks a twice as often. Nesting works; the seed decides every pick.",
                 }),
                 "seed": ("INT", {
                     "default": 0, "min": 0, "max": 0xFFFFFFFFFFFFFFFF,
@@ -145,8 +153,29 @@ class ZeonmkIIWildcardExpand:
             # 1) innermost { ... } choices until none remain
             m = _RE_INNERMOST.search(out)
             while m:
-                options = [o.strip() for o in m.group(1).split("|") if o.strip()]
-                repl = rng.choice(options) if options else ""
+                # Weighted parse (v0.33.0): "2::a" → ("a", 2.0); bare "a" → 1.0.
+                # Weight and text append together so they can never desync.
+                options, weights = [], []
+                for raw in m.group(1).split("|"):
+                    raw = raw.strip()
+                    if not raw:
+                        continue
+                    w = _RE_WEIGHT.match(raw)
+                    weight = float(w.group(1)) if w else 1.0
+                    if w:
+                        raw = raw[w.end():].strip()
+                    if not raw:
+                        continue   # weight-only token picks nothing
+                    options.append(raw)
+                    weights.append(max(0.0, weight))
+                if not options:
+                    repl = ""
+                elif sum(weights) <= 0:
+                    repl = rng.choice(options)   # all-zero weights → uniform
+                elif all(w == 1.0 for w in weights):
+                    repl = rng.choice(options)   # unweighted → exact legacy RNG stream; pre-v0.33 prompts reproduce identically
+                else:
+                    repl = rng.choices(options, weights=weights, k=1)[0]
                 out = out[:m.start()] + repl + out[m.end():]
                 m = _RE_INNERMOST.search(out)
             # 2) expand every wildcard ref once (each pick may inject new
