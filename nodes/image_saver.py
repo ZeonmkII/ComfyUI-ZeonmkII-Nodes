@@ -168,6 +168,7 @@ class ImageSaverMetadata:
     def INPUT_TYPES(cls) -> dict[str, Any]:
         return {
             "optional": {
+                "lora_stack":            ("STRING",  {"default": '', "multiline": True,                            "tooltip": "active LoRA stack as text — wire from LoRAs Loader ZeonmkII's lora_stack output; recorded as its own 'LoRAs:' line in the image parameters (never appended to the prompt)"}),
                 "modelname":             ("STRING",  {"default": '', "multiline": False,                           "tooltip": "model name (can be multiple, separated by commas)"}),
                 "positive":              ("STRING",  {"default": '', "multiline": True, "placeholder": "positive prompt",            "tooltip": "positive prompt"}),
                 "negative":              ("STRING",  {"default": '', "multiline": True, "placeholder": "negative prompt",            "tooltip": "negative prompt"}),
@@ -212,12 +213,13 @@ class ImageSaverMetadata:
         additional_hashes: str = "",
         download_civitai_data: bool = True,
         easy_remix: bool = True,
+        lora_stack: str = "",
     ) -> tuple[Metadata, str, str]:
-        metadata = ImageSaverMetadata.make_metadata(modelname, positive, negative, width, height, seed_value, steps, cfg, sampler_name, scheduler_name, denoise, clip_skip, custom, additional_hashes, download_civitai_data, easy_remix)
+        metadata = ImageSaverMetadata.make_metadata(modelname, positive, negative, width, height, seed_value, steps, cfg, sampler_name, scheduler_name, denoise, clip_skip, custom, additional_hashes, download_civitai_data, easy_remix, lora_stack)
         return (metadata, metadata.final_hashes, metadata.a111_params)
 
     @staticmethod
-    def make_metadata(modelname: str, positive: str, negative: str, width: int, height: int, seed_value: int, steps: int, cfg: float, sampler_name: str, scheduler_name: str, denoise: float, clip_skip: int, custom: str, additional_hashes: str, download_civitai_data: bool, easy_remix: bool) -> Metadata:
+    def make_metadata(modelname: str, positive: str, negative: str, width: int, height: int, seed_value: int, steps: int, cfg: float, sampler_name: str, scheduler_name: str, denoise: float, clip_skip: int, custom: str, additional_hashes: str, download_civitai_data: bool, easy_remix: bool, lora_stack: str = "") -> Metadata:
         modelname, additional_hashes = ImageSaver.get_multiple_models(modelname, additional_hashes)
 
         ckpt_path = full_checkpoint_path_for(modelname)
@@ -254,11 +256,14 @@ class ImageSaverMetadata:
         custom_str = f", {custom}" if custom else ""
         model_hash_str = f", Model hash: {add_model_hash}" if add_model_hash else ""
         hashes_str = f", Hashes: {json.dumps(hashes, separators=(',', ':'))}" if hashes else ""
+        # v0.36.0 (Boss Oct 7 idea): the active LoRA stack as its own parameters
+        # line — an extra field, never appended to the positive prompt.
+        loras_str = f"\nLoRAs: {lora_stack.strip()}" if lora_stack and lora_stack.strip() else ""
 
         a111_params = (
             f"{positive_a111_params}{negative_a111_params}\n"
             f"Steps: {steps}, Sampler: {civitai_sampler_name}, CFG scale: {cfg}, Seed: {seed_value}, "
-            f"Size: {width}x{height}{clip_skip_str}{custom_str}{model_hash_str}, Model: {basemodelname}{hashes_str}, Version: ComfyUI"
+            f"Size: {width}x{height}{clip_skip_str}{custom_str}{model_hash_str}, Model: {basemodelname}{hashes_str}, Version: ComfyUI{loras_str}"
         )
 
         # Add Civitai resource listing

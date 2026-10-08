@@ -14,6 +14,11 @@ Python's job is small: for each switched-on row, apply its LoRA to the MODEL (an
 CLIP) with its strengths, chaining them, and join the user's chosen trigger words
 into the `triggers` STRING output. The metadata / trigger-word reading used by the
 info panel lives in the pure, testable _lora_helpers module and in _lora_routes.
+
+v0.36.0: the active stack also leaves as the `lora_stack` STRING output (the
+same resolved rows as triggers, rendered 'name:strength') — wire it into the
+Save Image metadata node's lora_stack field and the PNG grows its own 'LoRAs:'
+parameters line, never touching the prompt.
 """
 import os
 
@@ -51,12 +56,13 @@ class ZeonmkIILoRAsLoader:
             "hidden": {"LoraLoaderState": ("STRING", {"default": "{}"})},
         }
 
-    RETURN_TYPES = ("MODEL", "CLIP", "STRING")
-    RETURN_NAMES = ("MODEL", "CLIP", "triggers")
+    RETURN_TYPES = ("MODEL", "CLIP", "STRING", "STRING")
+    RETURN_NAMES = ("MODEL", "CLIP", "triggers", "lora_stack")
     OUTPUT_TOOLTIPS = (
         "The model with every switched-on LoRA applied, in row order.",
         "The CLIP with every switched-on LoRA applied (passes through unchanged if no CLIP was connected).",
         "The trigger words you picked, from switched-on LoRAs only, joined as plain text for your prompt.",
+        "The active stack as 'name:strength' text (switched-on rows only) — wire into the Save Image metadata node's lora_stack field to record it in the PNG as its own LoRAs: line.",
     )
     FUNCTION = "apply"
     CATEGORY = "ZeonmkII"
@@ -148,6 +154,11 @@ class ZeonmkIILoRAsLoader:
         # resolved row is on, so it dedups + joins their picked words).
         triggers = H.collect_triggers({"loras": resolved, "sep": state.get("sep", ", ")})
 
+        # v0.36.0: the active stack as metadata text — same resolved rows as
+        # triggers (on + file found, including deliberate 0-strength parks),
+        # so the recorded stack can never disagree with what really applied.
+        stack = H.build_stack_string(resolved, clip is not None)
+
         # Prune per the user's memory mode (see __init__).
         if cache_mode == "none":
             self._cache.clear()
@@ -166,7 +177,7 @@ class ZeonmkIILoRAsLoader:
             self._last_path = keep
 
         print("[ZeonmkII LoRAs Loader] applied {} LoRA(s).".format(applied))
-        return (model, clip, triggers)
+        return (model, clip, triggers, stack)
 
 
 NODE_CLASS_MAPPINGS = {"ZeonmkII LoRAs Loader": ZeonmkIILoRAsLoader}

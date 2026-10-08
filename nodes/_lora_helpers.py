@@ -882,3 +882,32 @@ def delete_sidecar_cache(lora_path):
         return True
     except Exception:
         return False
+
+
+def build_stack_string(loras, clip_wired=False):
+    """The active LoRA stack as compact metadata text (v0.36.0, Boss Oct 7 idea).
+
+    Takes the rows the loader resolved — the triggers law: switched on AND the
+    file was found — so the recorded stack and the trigger words can never
+    disagree. Each row renders as 'name:strength' (model strength); when a CLIP
+    is wired and its strength differs, 'name:model/clip'. Deliberate
+    0-strength parks stay listed (the user switched them on on purpose) and the
+    ':0' self-documents. Joined with ', '. Never raises; empty input -> ''.
+    """
+    parts = []
+    for entry in loras or []:
+        try:
+            if not isinstance(entry, dict) or not entry.get("on"):
+                continue
+            name = str(entry.get("name", "")).strip()
+            if not name:
+                continue
+            sm = float(entry.get("sm", 0.0))
+            sc = float(entry.get("sc", sm))
+            frag = f"{name}:{sm:g}"
+            if clip_wired and sc != sm:
+                frag = f"{name}:{sm:g}/{sc:g}"
+            parts.append(frag)
+        except (TypeError, ValueError):
+            continue
+    return ", ".join(parts)
