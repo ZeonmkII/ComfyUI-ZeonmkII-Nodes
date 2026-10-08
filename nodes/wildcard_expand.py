@@ -15,6 +15,10 @@ layout), clean-room per the 2026-10-05 design session:
     style, positive int/float, default 1). Weight 0 never picks; all-zero
     falls back uniform. File-picked lines re-enter resolution, so weighted
     braces inside wildcard files work too.
+  • branches are verbatim (v0.35.7): spacing carries meaning —
+    "on{| top of} her" → "on her" / "on top of her". An empty branch is a
+    real branch (a chance to delete the phrase); doubled spaces left by
+    padded branches collapse after full expansion.
 
 Same law as the rest of the pack: a pure function of (text, seed). It is
 stateless — no disk cache, nothing advances — so XY sweeps freeze it for
@@ -41,7 +45,9 @@ _RE_REF = re.compile(r"__((?:[^_]|_(?!_))+?)__")
 _RE_INNERMOST = re.compile(r"\{([^{}]*)\}")
 # Per-option weight prefix: "2::option" (positive int/float, Dynamic
 # Prompts style). Matched at option-parse time; default weight is 1.
-_RE_WEIGHT = re.compile(r"^(\d+(?:\.\d+)?)::\s*")
+# v0.35.7: leading whitespace is consumed by the match itself so branches
+# never need pre-stripping (verbatim branch text).
+_RE_WEIGHT = re.compile(r"^\s*(\d+(?:\.\d+)?)::\s*")
 
 
 def _wildcard_roots():
@@ -157,23 +163,24 @@ class ZeonmkIIWildcardExpand:
                 # Weight and text append together so they can never desync.
                 options, weights = [], []
                 for raw in m.group(1).split("|"):
-                    raw = raw.strip()
-                    if not raw:
-                        continue
+                    # v0.35.7: branches are VERBATIM — spacing carries
+                    # meaning ("on{| top of} her" → "on her" / "on top of
+                    # her"). An empty branch is a real branch (a chance to
+                    # delete the phrase); a whitespace-only body (bare " "
+                    # or a weight prefix with nothing after it) counts as
+                    # empty.
                     w = _RE_WEIGHT.match(raw)
                     weight = float(w.group(1)) if w else 1.0
                     if w:
-                        raw = raw[w.end():].strip()
-                    if not raw:
-                        continue   # weight-only token picks nothing
-                    options.append(raw)
+                        raw = raw[w.end():]
+                    options.append(raw if raw.strip() else "")
                     weights.append(max(0.0, weight))
                 if not options:
                     repl = ""
                 elif sum(weights) <= 0:
                     repl = rng.choice(options)   # all-zero weights → uniform
                 elif all(w == 1.0 for w in weights):
-                    repl = rng.choice(options)   # unweighted → exact legacy RNG stream; pre-v0.33 prompts reproduce identically
+                    repl = rng.choice(options)   # unweighted → uniform; same seed, same pick (per version)
                 else:
                     repl = rng.choices(options, weights=weights, k=1)[0]
                 out = out[:m.start()] + repl + out[m.end():]
@@ -185,6 +192,10 @@ class ZeonmkIIWildcardExpand:
                 break   # stable — no live refs left
             out = expanded
 
+        # v0.35.7: verbatim/padded branches can leave doubled spaces —
+        # collapse space/tab runs to one, then trim the output's own ends
+        # (newlines and interior spacing untouched).
+        out = re.sub(r"[ \t]{2,}", " ", out).strip()
         return (out,)
 
 # Registry mappings live in __init__.py — the pack's single source of truth.
