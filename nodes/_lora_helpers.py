@@ -911,3 +911,22 @@ def build_stack_string(loras, clip_wired=False):
         except (TypeError, ValueError):
             continue
     return ", ".join(parts)
+
+
+def merge_stack_texts(*parts):
+    """Join non-empty stack texts with ', ' (v0.36.1).
+
+    Save Image merges the style stack (LoRAs Loader's lora_stack) and the
+    character LoRAs (Character Swap's character_loras) onto one 'LoRAs:'
+    metadata line — only non-empty parts, stripped, in the order given.
+    Never raises; no parts -> ''.
+    """
+    out = []
+    for part in parts:
+        try:
+            text = str(part).strip() if part else ""
+        except Exception:
+            text = ""
+        if text:
+            out.append(text)
+    return ", ".join(out)

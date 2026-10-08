@@ -71,6 +71,11 @@ _FIELD_SPECS = [
     ("time_format", "STRING", {"default": "%Y-%m-%d-%H%M%S", "multiline": False, "tooltip": "timestamp format"}),
     ("save_workflow_as_json", "BOOLEAN", {"default": False, "tooltip": "if True, also saves the workflow as a separate JSON file"}),
     ("embed_workflow", "BOOLEAN", {"default": True, "tooltip": "if True, embeds the workflow in the saved image files"}),
+    # v0.36.1 LoRA-stack recorder fields — APPENDED on purpose: Pipe Out sockets
+    # are positional and existing workflows wire them by index, so new fields
+    # must never go in the middle of this list.
+    ("lora_stack", "STRING", {"default": "", "multiline": False, "tooltip": "active style-LoRA stack text (from LoRAs Loader's lora_stack output) -> Save Image's LoRAs: metadata line"}),
+    ("character_loras", "STRING", {"default": "", "multiline": False, "tooltip": "active character LoRA text (from Character Swap's character_loras output) -> Save Image's LoRAs: metadata line"}),
 ]
 
 _REQUIRED = ["images", "filename", "path", "extension"]
@@ -81,6 +86,7 @@ _EDITABLE_STRINGS = [
     "1st_sampler_name", "1st_scheduler_name",
     "2nd_sampler_name", "2nd_scheduler_name",
     "positive", "negative", "time_format",
+    "lora_stack", "character_loras",
 ]
 
 _FIELD_NAMES = [s[0] for s in _FIELD_SPECS]

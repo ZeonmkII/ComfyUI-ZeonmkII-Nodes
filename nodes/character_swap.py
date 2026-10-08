@@ -75,8 +75,8 @@ class ZeonmkIICharacterSwap:
             })
         return inputs
 
-    RETURN_TYPES = ("MODEL", "CLIP", "STRING", "INT", "STRING")
-    RETURN_NAMES = ("model", "clip", "text", "chosen_index", "chosen_name")
+    RETURN_TYPES = ("MODEL", "CLIP", "STRING", "INT", "STRING", "STRING")
+    RETURN_NAMES = ("model", "clip", "text", "chosen_index", "chosen_name", "character_loras")
     FUNCTION = "select_and_swap"
     CATEGORY = "ZeonmkII"
 
@@ -106,7 +106,7 @@ class ZeonmkIICharacterSwap:
 
         if idx is None:
             # Nothing selected (benched pick / empty random pool): pass through.
-            return (model, clip, text, 0, "")
+            return (model, clip, text, 0, "", "")
 
         lora_name = kwargs.get(f"lora_{idx}", "None")
         trigger = kwargs.get(f"trigger_{idx}", "") or ""
@@ -115,12 +115,18 @@ class ZeonmkIICharacterSwap:
 
         # LoRA application — stock core path, identical to built-in LoraLoader.
         out_model, out_clip = model, clip
+        char_stack = ""
         if lora_name and lora_name != "None" and (s_model != 0 or s_clip != 0):
             lora_path = folder_paths.get_full_path("loras", lora_name)
             if lora_path:
                 lora = comfy.utils.load_torch_file(lora_path, safe_load=True)
                 out_model, out_clip = load_lora_for_models(model, clip, lora, s_model, s_clip)
+                # v0.36.1: same convention as the LoRAs Loader's lora_stack —
+                # only what actually applied, 'name:model' (+ '/clip' when it differs).
+                char_stack = f"{lora_name}:{s_model:g}"
+                if s_clip != s_model:
+                    char_stack += f"/{s_clip:g}"
 
         # Token swap — replace every occurrence; no-op when the token is absent.
         text_out = text.replace(token, trigger) if (token and trigger) else text
-        return (out_model, out_clip, text_out, idx, trigger)
+        return (out_model, out_clip, text_out, idx, trigger, char_stack)

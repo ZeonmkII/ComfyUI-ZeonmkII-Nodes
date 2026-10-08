@@ -67,6 +67,15 @@ check("string strengths coerced", b([{"name": "s", "on": True, "sm": "0.7", "sc"
 s = b([row("first", True, 0.9), row("second", True, 0.4), row("third", True, 0.1)])
 check("order preserved", s == "first:0.9, second:0.4, third:0.1", s)
 
+# 9) merge_stack_texts (v0.36.1: style + character onto one LoRAs: line)
+m = H.merge_stack_texts
+check("merge: both parts", m("a:0.8", "c:0.7") == "a:0.8, c:0.7")
+check("merge: empty part skipped", m("", "c:0.7") == "c:0.7")
+check("merge: whitespace-only skipped", m("  ", "c:0.7") == "c:0.7")
+check("merge: all empty -> ''", m("", "  ", None) == "")
+check("merge: strips parts", m(" a:0.8 ", "c:0.7") == "a:0.8, c:0.7")
+check("merge: no args -> ''", m() == "")
+
 print()
 if FAILS:
     print(f"RESULT: {len(FAILS)} FAILED: {FAILS}")

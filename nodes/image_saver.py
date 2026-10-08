@@ -16,6 +16,7 @@ from PIL import Image
 import torch
 
 import folder_paths
+from . import _lora_helpers as _LH
 from nodes import MAX_RESOLUTION
 
 from .saver_lib.saver import save_image
@@ -169,6 +170,7 @@ class ImageSaverMetadata:
         return {
             "optional": {
                 "lora_stack":            ("STRING",  {"default": '', "multiline": True,                            "tooltip": "active LoRA stack as text — wire from LoRAs Loader ZeonmkII's lora_stack output; recorded as its own 'LoRAs:' line in the image parameters (never appended to the prompt)"}),
+                "character_loras":       ("STRING",  {"default": '', "multiline": True,                            "tooltip": "active character LoRA as text — wire from Character Swap ZeonmkII's character_loras output; joins the same 'LoRAs:' metadata line"}),
                 "modelname":             ("STRING",  {"default": '', "multiline": False,                           "tooltip": "model name (can be multiple, separated by commas)"}),
                 "positive":              ("STRING",  {"default": '', "multiline": True, "placeholder": "positive prompt",            "tooltip": "positive prompt"}),
                 "negative":              ("STRING",  {"default": '', "multiline": True, "placeholder": "negative prompt",            "tooltip": "negative prompt"}),
@@ -214,12 +216,13 @@ class ImageSaverMetadata:
         download_civitai_data: bool = True,
         easy_remix: bool = True,
         lora_stack: str = "",
+        character_loras: str = "",
     ) -> tuple[Metadata, str, str]:
-        metadata = ImageSaverMetadata.make_metadata(modelname, positive, negative, width, height, seed_value, steps, cfg, sampler_name, scheduler_name, denoise, clip_skip, custom, additional_hashes, download_civitai_data, easy_remix, lora_stack)
+        metadata = ImageSaverMetadata.make_metadata(modelname, positive, negative, width, height, seed_value, steps, cfg, sampler_name, scheduler_name, denoise, clip_skip, custom, additional_hashes, download_civitai_data, easy_remix, lora_stack, character_loras)
         return (metadata, metadata.final_hashes, metadata.a111_params)
 
     @staticmethod
-    def make_metadata(modelname: str, positive: str, negative: str, width: int, height: int, seed_value: int, steps: int, cfg: float, sampler_name: str, scheduler_name: str, denoise: float, clip_skip: int, custom: str, additional_hashes: str, download_civitai_data: bool, easy_remix: bool, lora_stack: str = "") -> Metadata:
+    def make_metadata(modelname: str, positive: str, negative: str, width: int, height: int, seed_value: int, steps: int, cfg: float, sampler_name: str, scheduler_name: str, denoise: float, clip_skip: int, custom: str, additional_hashes: str, download_civitai_data: bool, easy_remix: bool, lora_stack: str = "", character_loras: str = "") -> Metadata:
         modelname, additional_hashes = ImageSaver.get_multiple_models(modelname, additional_hashes)
 
         ckpt_path = full_checkpoint_path_for(modelname)
@@ -256,9 +259,11 @@ class ImageSaverMetadata:
         custom_str = f", {custom}" if custom else ""
         model_hash_str = f", Model hash: {add_model_hash}" if add_model_hash else ""
         hashes_str = f", Hashes: {json.dumps(hashes, separators=(',', ':'))}" if hashes else ""
-        # v0.36.0 (Boss Oct 7 idea): the active LoRA stack as its own parameters
-        # line — an extra field, never appended to the positive prompt.
-        loras_str = f"\nLoRAs: {lora_stack.strip()}" if lora_stack and lora_stack.strip() else ""
+        # v0.36.0/0.36.1 (Boss Oct 7 idea): style stack + character LoRAs merged
+        # onto their own parameters line — an extra field, never appended to the
+        # positive prompt.
+        lora_full = _LH.merge_stack_texts(lora_stack, character_loras)
+        loras_str = f"\nLoRAs: {lora_full}" if lora_full else ""
 
         a111_params = (
             f"{positive_a111_params}{negative_a111_params}\n"
@@ -388,6 +393,8 @@ class ImageSaver:
             },
             "optional": {
                 "modelname":             ("STRING",  {"default": '', "multiline": False,                           "tooltip": "model name (can be multiple, separated by commas)"}),
+                "lora_stack":            ("STRING",  {"default": '', "multiline": True,                            "tooltip": "active style-LoRA stack as text — wire from LoRAs Loader ZeonmkII's lora_stack output (or the pipe); lands on the LoRAs: metadata line (never in the prompt)"}),
+                "character_loras":       ("STRING",  {"default": '', "multiline": True,                            "tooltip": "active character LoRA as text — wire from Character Swap ZeonmkII's character_loras output (or the pipe); joins the same LoRAs: metadata line"}),
                 "1st_sampler_name":      ("STRING",  {"default": '', "multiline": False,                           "tooltip": "1st KSampler pass - sampler name"}),
                 "1st_scheduler_name":    ("STRING",  {"default": 'normal', "multiline": False,                     "tooltip": "1st KSampler pass - scheduler name"}),
                 "1st_steps":             ("INT",     {"default": 12, "min": 0, "max": 10000,                       "tooltip": "1st KSampler pass - steps"}),
@@ -444,6 +451,8 @@ class ImageSaver:
         label and show_preview are cut per Boss."""
         g = kwargs.get
         modelname = g("modelname", "")
+        lora_stack = g("lora_stack", "")
+        character_loras = g("character_loras", "")
         s1 = g("1st_sampler_name", "")
         sch1 = g("1st_scheduler_name", "normal")
         st1 = g("1st_steps", 12)
@@ -477,7 +486,7 @@ class ImageSaver:
         sampler_name = join_pass(s1, s2)
         scheduler_name = join_pass(sch1, sch2)
 
-        metadata = ImageSaverMetadata.make_metadata(modelname, positive, negative, width, height, seed_value, steps, cfg, sampler_name, scheduler_name, denoise, clip_skip, "", "", False, False)
+        metadata = ImageSaverMetadata.make_metadata(modelname, positive, negative, width, height, seed_value, steps, cfg, sampler_name, scheduler_name, denoise, clip_skip, "", "", False, False, lora_stack, character_loras)
 
         path = make_pathname(path, metadata.width, metadata.height, metadata.seed, metadata.modelname, 0, time_format, metadata.sampler_name, metadata.steps, metadata.cfg, metadata.scheduler_name, metadata.denoise, metadata.clip_skip, "", "")
 
