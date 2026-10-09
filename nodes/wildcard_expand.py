@@ -1,8 +1,9 @@
 """
-Wildcard Expand ZeonmkII — seeded { a | b } + nesting + __file__ wildcards.
+Wildcard Expand ZeonmkII — seeded { a | b } + nesting + __file__ wildcards
++ Impact-style $$ pick-counts.
 
 Compact core of the classic wildcard engines (Impact Pack compatible file
-layout), clean-room per the 2026-10-05 design session:
+layout and syntax), clean-room per the 2026-10-05 design session:
   • { option A | option B | option C } — seeded pick, one survivor
   • nesting — { a | { b | c } } resolves innermost braces first
   • __name__ — one random line from wildcards/name.txt, searched across
@@ -15,6 +16,12 @@ layout), clean-room per the 2026-10-05 design session:
     style, positive int/float, default 1). Weight 0 never picks; all-zero
     falls back uniform. File-picked lines re-enter resolution, so weighted
     braces inside wildcard files work too.
+  • pick-this-many (v0.36.2, Impact Pack syntax): {2$$a|b|c} picks 2
+    distinct options, {1-3$$a|b|c|d} picks 1-3, {-3$$...} = 1-3, and
+    {2$$, $$a|b|c} joins with a custom separator (default: one space).
+    The count caps at the pool ({5$$a|b} takes both); weights combine
+    ({2$$2::a|b|c}); {2$$__file__} draws distinct lines from a wildcard
+    file. A $$ without a count head stays literal.
   • branches are verbatim (v0.35.7): spacing carries meaning —
     "on{| top of} her" → "on her" / "on top of her". An empty branch is a
     real branch (a chance to delete the phrase); doubled spaces left by
@@ -108,6 +115,93 @@ def _file_options(path):
     return opts
 
 
+def _parse_branches(branches):
+    # Weighted parse (v0.33.0): "2::a" → ("a", 2.0); bare "a" → 1.0.
+    # Weight and text append together so they can never desync.
+    options, weights = [], []
+    for raw in branches:
+        # v0.35.7: branches are VERBATIM — spacing carries
+        # meaning ("on{| top of} her" → "on her" / "on top of
+        # her"). An empty branch is a real branch (a chance to
+        # delete the phrase); a whitespace-only body (bare " "
+        # or a weight prefix with nothing after it) counts as
+        # empty.
+        w = _RE_WEIGHT.match(raw)
+        weight = float(w.group(1)) if w else 1.0
+        if w:
+            raw = raw[w.end():]
+        options.append(raw if raw.strip() else "")
+        weights.append(max(0.0, weight))
+    return options, weights
+
+
+# v0.36.2 — pick-this-many (Impact Pack syntax). A group whose first
+# branch starts with a count activates $$ mode:
+#   {2$$a|b|c}      → pick 2 distinct, join with " "
+#   {1-3$$a|b|c|d}  → pick 1-3       {-3$$...} means 1-3
+#   {2$$, $$a|b|c}  → second $$ names the join separator (here ", ")
+#   {2$$__file__}   → the option pool is the wildcard file's lines
+# The count caps at the pool size; a $$ head without a count (or 4+
+# $$ parts) keeps $$ literal. Weights combine: {2$$2::a|b|c}.
+_RE_COUNT = re.compile(r"^\s*(\d+)(?:\s*-\s*(\d+))?\s*$")
+_RE_COUNT_DASH = re.compile(r"^\s*-\s*(\d+)\s*$")
+_COUNT_SKIP = "count-group-file-miss"
+
+
+def _parse_count_group(body):
+    """(lo, hi, sep, branches) for a count group; None when body isn't
+    one; _COUNT_SKIP when the single-file form's wildcard is missing."""
+    first = body.split("|", 1)[0]
+    if "$$" not in first:
+        return None
+    parts = first.split("$$")
+    if len(parts) not in (2, 3):
+        return None
+    mc = _RE_COUNT.match(parts[0])
+    if mc:
+        lo = int(mc.group(1))
+        hi = int(mc.group(2)) if mc.group(2) is not None else lo
+    else:
+        md = _RE_COUNT_DASH.match(parts[0])
+        if not md:
+            return None
+        lo, hi = 1, int(md.group(1))
+    lo = max(0, lo)
+    hi = max(hi, lo)
+    if len(parts) == 2:
+        sep = " "                # Impact's default separator: one space
+        new_first = parts[1]
+    else:
+        sep = parts[1]           # {count$$sep$...} — custom separator
+        new_first = parts[2]
+    branches = [new_first] + body.split("|")[1:]
+    # {2$$__file__} — sole option is a wildcard ref: pool = file lines
+    if len(branches) == 1:
+        rm = _RE_REF.fullmatch(branches[0].strip())
+        if rm:
+            path = _wildcard_file(rm.group(1).strip())
+            opts = _file_options(path) if path else []
+            if not opts:
+                return _COUNT_SKIP   # unknown file — group stays visible
+            return lo, hi, sep, opts
+    return lo, hi, sep, branches
+
+
+def _draw_k(options, weights, k, rng):
+    """k distinct draws, weighted, without replacement."""
+    pool = list(range(len(options)))
+    picked = []
+    while pool and len(picked) < k:
+        ws = [weights[i] for i in pool]
+        if sum(ws) <= 0 or all(w == 1.0 for w in ws):
+            idx = pool[rng.randrange(len(pool))]
+        else:
+            idx = rng.choices(pool, weights=ws, k=1)[0]
+        picked.append(options[idx])
+        pool.remove(idx)
+    return picked
+
+
 class ZeonmkIIWildcardExpand:
     DESCRIPTION = (
         "Expand { a | b } choices and __wildcard__ references into one "
@@ -123,7 +217,7 @@ class ZeonmkIIWildcardExpand:
                     "multiline": True,
                     "default": "",
                     "placeholder": "photo of { a woman | a man } in __location__",
-                    "tooltip": "Text with { a | b } choices and/or __wildcard__ references (one random line each). Weights work: {2::a | b} picks a twice as often. Nesting works; the seed decides every pick.",
+                    "tooltip": "Text with { a | b } choices and/or __wildcard__ references (one random line each). Weights work: {2::a | b} picks a twice as often. Pick-several works: {2$$a|b|c} picks 2, {1-3$$a|b|c} picks 1-3, {2$$, $$a|b} joins with a custom separator. Nesting works; the seed decides every pick.",
                 }),
                 "seed": ("INT", {
                     "default": 0, "min": 0, "max": 0xFFFFFFFFFFFFFFFF,
@@ -159,30 +253,28 @@ class ZeonmkIIWildcardExpand:
             # 1) innermost { ... } choices until none remain
             m = _RE_INNERMOST.search(out)
             while m:
-                # Weighted parse (v0.33.0): "2::a" → ("a", 2.0); bare "a" → 1.0.
-                # Weight and text append together so they can never desync.
-                options, weights = [], []
-                for raw in m.group(1).split("|"):
-                    # v0.35.7: branches are VERBATIM — spacing carries
-                    # meaning ("on{| top of} her" → "on her" / "on top of
-                    # her"). An empty branch is a real branch (a chance to
-                    # delete the phrase); a whitespace-only body (bare " "
-                    # or a weight prefix with nothing after it) counts as
-                    # empty.
-                    w = _RE_WEIGHT.match(raw)
-                    weight = float(w.group(1)) if w else 1.0
-                    if w:
-                        raw = raw[w.end():]
-                    options.append(raw if raw.strip() else "")
-                    weights.append(max(0.0, weight))
-                if not options:
-                    repl = ""
-                elif sum(weights) <= 0:
-                    repl = rng.choice(options)   # all-zero weights → uniform
-                elif all(w == 1.0 for w in weights):
-                    repl = rng.choice(options)   # unweighted → uniform; same seed, same pick (per version)
+                cg = _parse_count_group(m.group(1))
+                if cg is _COUNT_SKIP:
+                    # {2$$__missing__} — file not found: leave the whole
+                    # group visible so the typo self-diagnoses on sight.
+                    repl = m.group(0)
+                elif cg is not None:
+                    # v0.36.2 pick-this-many: draw k distinct options,
+                    # join with the group's separator.
+                    lo, hi, sep, branches = cg
+                    options, weights = _parse_branches(branches)
+                    k = min(rng.randint(lo, hi), len(options))
+                    repl = sep.join(_draw_k(options, weights, k, rng))
                 else:
-                    repl = rng.choices(options, weights=weights, k=1)[0]
+                    options, weights = _parse_branches(m.group(1).split("|"))
+                    if not options:
+                        repl = ""
+                    elif sum(weights) <= 0:
+                        repl = rng.choice(options)   # all-zero weights → uniform
+                    elif all(w == 1.0 for w in weights):
+                        repl = rng.choice(options)   # unweighted → uniform; same seed, same pick (per version)
+                    else:
+                        repl = rng.choices(options, weights=weights, k=1)[0]
                 out = out[:m.start()] + repl + out[m.end():]
                 m = _RE_INNERMOST.search(out)
             # 2) expand every wildcard ref once (each pick may inject new
