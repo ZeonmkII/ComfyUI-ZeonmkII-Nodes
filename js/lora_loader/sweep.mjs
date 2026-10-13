@@ -237,14 +237,29 @@ function strengthOf(value) {
 // second composes on the first instead of discarding it), and it does not matter
 // whether the node's own graphToPrompt hook has run yet - hook order between two
 // wrappers is load-order dependent.
+//
+// ORDER SAFETY (v0.36.3): a hook chain's direction is decided by which extension
+// registered LAST, which a browser may resolve in either direction. So a pre-existing
+// value is trusted only when it carries OUR provenance stamp ("src": "loader" = the
+// loader's own hook wrote it, fresh live rows; "src": "xy" = an earlier axis of this
+// same cell composed here). Anything else ("{}", a stale widget-serialized copy) is
+// discarded in favor of the LIVE rows via promptState() - composing on a stale array
+// could patch the wrong row index or no-op entirely.
+const SRC_LOADER = "loader";
+const SRC_XY = "xy";
+
+function markedState(raw) {
+  if (typeof raw !== "string" || !raw) return null;
+  try {
+    const o = JSON.parse(raw);
+    if (o && Array.isArray(o.loras) && (o.src === SRC_LOADER || o.src === SRC_XY)) return o;
+  } catch (_e) { /* fall through */ }
+  return null;
+}
+
 function currentPromptState(entry, st) {
-  const raw = entry.inputs[HIDDEN_INPUT];
-  if (typeof raw === "string" && raw) {
-    try {
-      const o = JSON.parse(raw);
-      if (o && Array.isArray(o.loras)) return o;
-    } catch (_e) { /* fall through to a fresh build */ }
-  }
+  const marked = markedState(entry.inputs[HIDDEN_INPUT]);
+  if (marked) return marked;
   return promptState(st);
 }
 
@@ -284,6 +299,10 @@ function inject(entry, axis, value, node) {
   // Sweeping a switched-off row would produce identical squares, so the swept row is
   // forced on - the same rule the multi-lora row sweep already follows.
   row.on = true;
+  // Provenance stamp (see markedState): tells the loader's own graphToPrompt hook
+  // that this cell's value is already composed and must NOT be overwritten with the
+  // plain UI state, no matter which wrapper ended up outermost in the chain.
+  ps.src = SRC_XY;
   entry.inputs[HIDDEN_INPUT] = JSON.stringify(ps);
 }
 

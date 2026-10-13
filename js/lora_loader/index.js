@@ -244,7 +244,23 @@ app.graphToPrompt = async function (...args) {
         entry.inputs = entry.inputs || {};
         const node = findNode(index, id);
         const st = node ? readState(node) : { ...DEFAULT_STATE, ...loadDefaults(), loras: [] };
-        entry.inputs[HIDDEN_INPUT] = JSON.stringify(promptState(st));
+        // ORDER SAFETY (v0.36.3): the XY Plot sweep patches this same input per cell.
+        // Hook-chain direction depends on which extension registered last, so this
+        // hook may run BEFORE or AFTER the sweep's injection. If the existing value
+        // is already sweep-composed (src:"xy"), it is newer than anything we could
+        // write here - leave it alone. Otherwise write the live UI state, stamped
+        // "src":"loader" so the sweep's composition knows it is fresh and safe to
+        // build on (see js/lora_loader/sweep.mjs markedState).
+        let existing = null;
+        try {
+          const raw = entry.inputs[HIDDEN_INPUT];
+          if (typeof raw === "string" && raw) {
+            const o = JSON.parse(raw);
+            if (o && Array.isArray(o.loras)) existing = o;
+          }
+        } catch (_e) { /* treat as absent */ }
+        if (existing && existing.src === "xy") continue;
+        entry.inputs[HIDDEN_INPUT] = JSON.stringify({ ...promptState(st), src: "loader" });
       }
     }
   } catch (e) {
