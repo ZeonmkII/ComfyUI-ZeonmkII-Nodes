@@ -664,6 +664,28 @@ api.addEventListener("execution_error", ({ detail }) => {
   } catch (_e) {}
 });
 
+// Capture each cell's prompt_id at the API layer (v0.36.6). app.queuePrompt's
+// return value stopped carrying prompt_id in newer frontends, which left the
+// run line parked on "queued n/n · running…" for the whole plot (field report
+// 2026-10-13 19:15). api.queuePrompt's RESPONSE always has it, and it fires
+// once per cell INSIDE the driver's loop while _zeonXyRun is set - so map it
+// to the active cell here. The driver's own capture stays as a fallback.
+let _activeRunNode = null;
+const _origApiQueuePrompt = api.queuePrompt;
+api.queuePrompt = async function (...a) {
+  const res = await _origApiQueuePrompt.apply(this, a);
+  try {
+    const pid = res && typeof res === "object" && res.prompt_id ? String(res.prompt_id) : null;
+    const node = _activeRunNode;
+    const run = node?._zeonXyRun;
+    if (pid && node && run) {
+      node._zeonXyRunMap = node._zeonXyRunMap || new Map();
+      node._zeonXyRunMap.set(pid, { xi: run.xi, yi: run.yi, xValue: run.xValue, yValue: run.yValue });
+    }
+  } catch (_e) { /* feedback only - must never break queueing */ }
+  return res;
+};
+
 // ── the plot driver (patches app.queuePrompt) ────────────────────────────────
 
 function isXyActive(node) {
@@ -755,7 +777,9 @@ app.queuePrompt = async function (...args) {
             };
             try {
               const a = args.slice(); a[1] = 1;   // batchCount=1, keep number + queueNodeIds
+              _activeRunNode = node;
               last = await _origQueuePrompt.apply(app, a);
+              _activeRunNode = null;
               queuedN++;
               // Track the cell's prompt_id so the executing listener can show
               // LIVE progress (which cell is running, and with what values).
