@@ -233,12 +233,13 @@ function isolate(input) {
   return input;
 }
 
-function labeledField(label, value, oninput) {
+function labeledField(label, value, oninput, tip) {
   const wrap = el("div", "z-xy-field");
   wrap.appendChild(el("span", "z-xy-flbl", label));
   const inp = isolate(el("input"));
   inp.type = "text";
   inp.value = value == null ? "" : String(value);
+  if (tip) inp.title = tip;
   inp.addEventListener("input", () => oninput(inp.value));
   wrap.appendChild(inp);
   // The whole box looks clickable - so clicking the label or the padding
@@ -557,7 +558,8 @@ function renderValueArea(node, axisKey, mount, refreshCounter, rerender) {
       const rangeRow = el("div", "z-xy-range");
       rangeRow.appendChild(labeledField("Start", axis.raw.start, (v) => { axis.raw.start = v; save(); refreshPreview(); }));
       rangeRow.appendChild(labeledField("End", axis.raw.end, (v) => { axis.raw.end = v; save(); refreshPreview(); }));
-      rangeRow.appendChild(labeledField("Steps", axis.raw.steps, (v) => { axis.raw.steps = v; save(); refreshPreview(); }));
+      rangeRow.appendChild(labeledField("Steps", axis.raw.steps, (v) => { axis.raw.steps = v; save(); refreshPreview(); },
+        "How many values (integer, e.g. 4) — or a step size (e.g. 0.1 = every 0.1)."));
       mount.appendChild(rangeRow);
     }
     mount.appendChild(buildPreview(axis));

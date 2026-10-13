@@ -608,9 +608,21 @@ export function parseNumberList(text, step, precision) {
   return out;
 }
 
+// Resolve a range entry. `steps` accepts BOTH readings:
+//   - integer count ("4" = 4 values, endpoints inclusive - A1111 convention)
+//   - fractional step size ("0.1" = every 0.1 from start to end)
+// Users think in increments for weights (0.3->0.6 "by 0.1"), and the old
+// parseInt() silently read "0.1" as 0 values -> single-value "plot".
 export function rangeToList(start, end, steps, step, precision) {
-  const a = parseFloat(start); const b = parseFloat(end); let n = parseInt(steps, 10);
+  const a = parseFloat(start); const b = parseFloat(end);
   if (!isFinite(a)) return [];
+  const span = Math.abs(b - a);
+  const sv = String(steps == null ? "" : steps).trim();
+  const f = parseFloat(sv); let n = parseInt(sv, 10);
+  if (isFinite(f) && f > 0 && f < span && n !== f) {
+    // Fractional entry that isn't a whole count = step size.
+    n = Math.floor(span / f + 1e-9) + 1;
+  }
   if (!isFinite(b) || !isFinite(n) || n <= 1) return [roundToStep(a, step, precision)];
   n = Math.min(n, MAX_AXIS_VALUES);
   const out = [];
