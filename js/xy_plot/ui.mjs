@@ -9,7 +9,7 @@ import { app } from "../../../scripts/app.js";
 import { zeonApiUrl } from "../shared/api_url.mjs";
 import {
   readState, writeState,
-  enumerateTargets, lookupWidgetMeta, currentValuePreview, axisDisplayName, axisNote,
+  enumerateTargets, lookupWidgetMeta, axisDisplayName, axisNote,
   resolveAxisValues, computeCounts, axisReady, setLiveAxisMeta,
 } from "./core.mjs";
 import { isGraphLoading } from "../shared/graph_loading.mjs";
@@ -41,7 +41,6 @@ export function injectCSS() {
 .z-xy-axis-reset:hover{border-color:var(--zeon-acc,#A20000);color:#fff;}
 .z-xy-axis-reset .z-xy-axis-reset-ic{font-size:12px;line-height:1;}
 .z-xy-row{display:flex;align-items:center;gap:7px;}
-.z-xy-curhint{font-size:10.5px;color:#8a8a8a;font-style:italic;margin:5px 2px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 /* Heads-up from the target node's sweep provider (e.g. "another LoRA row is on too,
    so it is in every square"). Wraps rather than ellipsising - it is a sentence, and
    a truncated warning is worse than none. */
@@ -859,14 +858,12 @@ export function renderBody(node, root, handlers) {
     const pickRow = el("div", "z-xy-row");
     card.appendChild(pickRow);
     renderPicker(node, axisKey, pickRow, handlers.rerender);
-    // "now: <value>" line so the user sees which setting this axis really
-    // points at (e.g. the negative 'watermark, text' vs the positive prompt).
-    const curp = currentValuePreview(node, state[axisKey]);
-    if (curp) {
-      const hint = el("div", "z-xy-curhint", "now: " + curp);
-      hint.title = "Current value of the setting this axis points at. If it's not the one you meant, re-pick above.";
-      card.appendChild(hint);
-    }
+    // (The old "now: <value>" line was removed in v0.36.7 - field verdict: on a
+    // widget axis it duplicated what the picker popup already shows per item, and
+    // on a state-blob axis it printed the live value ("now: 0.3"), which reads as
+    // a stuck run gauge that never moves. Wrong-node picks are caught where they
+    // happen - the picker's per-item "= current value" preview - and run progress
+    // lives in the run line under the counter.)
     // Anything else on the target node that lands in EVERY square (today: the LoRA
     // Loader's other switched-on rows). Shown here rather than only in the picker
     // popup because the surprise arrives when you look at the finished grid, not
