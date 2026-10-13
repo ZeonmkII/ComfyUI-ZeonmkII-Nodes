@@ -642,10 +642,9 @@ api.addEventListener("executing", ({ detail }) => {
         setRunline(node, `▶ ${k}/${info.total} · X ${runVal(cell.xValue)}`
           + (info.hasY ? ` · Y ${runVal(cell.yValue)}` : ""), true);
       } else {
-        // node null = this prompt (cell) finished executing.
-        info.done = Math.min(info.total, (info.done || 0) + 1);
-        if (info.done >= info.total) setRunline(node, `✓ ${info.total}/${info.total} · plot finished`, false);
-        else setRunline(node, `✓ ${info.done}/${info.total} done · next…`, true);
+        // node null = this prompt finished. Per-cell DONE counting lives in
+        // the executed handler (v0.36.8) - it carries _xy coords and cannot
+        // double-count; this path only drives the ▶ live text above.
       }
     }
   } catch (_e) { /* run feedback must never break a plot */ }
@@ -760,7 +759,11 @@ app.queuePrompt = async function (...args) {
     const yName = axisReady(state.y) ? axisDisplayName(state.y, node) : "";
 
     node._zeonXyRunMap = new Map();
-    node._zeonXyRunInfo = { cols, rows, total, done: 0, hasY: ys.length > 0 };
+    // sessionId/xs/ys feed the executed-driven run line (v0.36.8): the python
+    // node stamps every grid frame with _xy {sessionId, xi, yi}, which is the
+    // only per-cell signal that provably reaches the browser on every frontend
+    // version (prompt_id capture died twice in the field).
+    node._zeonXyRunInfo = { sessionId, cols, rows, total, done: 0, hasY: ys.length > 0, xs, ys, seen: new Set() };
     _runNodes.add(node);
 
     return await runQueueLoop(async () => {
@@ -824,6 +827,26 @@ api.addEventListener("executed", ({ detail }) => {
       node._zeonXyExecWorkflow = meta.workflow || null;
     }
     node._zeonXyGrid?.setGrid(url);
+    // v0.36.8: each cell's python execution emits this frame with _xy coords,
+    // making THIS the authoritative run-line driver - no prompt_id needed, and
+    // it's the same signal that assembles the grid (field-proven to arrive).
+    try {
+      const info = node._zeonXyRunInfo;
+      const cxy = f._xy || {};
+      if (info && cxy.sessionId && cxy.sessionId === info.sessionId && cxy.xi != null) {
+        const key = cxy.xi + "," + (cxy.yi || 0);
+        if (!info.seen.has(key)) {
+          info.seen.add(key);
+          info.done = info.seen.size;
+          const xv = info.xs ? info.xs[cxy.xi] : null;
+          const yv = info.hasY && info.ys ? info.ys[cxy.yi || 0] : null;
+          const fin = info.done >= info.total;
+          setRunline(node, fin
+            ? `✓ ${info.done}/${info.total} · plot finished`
+            : `✓ ${info.done}/${info.total} · X ${runVal(xv)}` + (yv != null ? ` · Y ${runVal(yv)}` : ""), !fin);
+        }
+      }
+    } catch (_e) { /* run feedback must never break grid delivery */ }
     // The node's actual resize-to-fit happens in the grid <img> onload handler
     // (grid.mjs -> _zeonXyFit); here we just request a repaint.
     requestAnimationFrame(() => { try { node.setDirtyCanvas?.(true, true); } catch (_e) {} });
