@@ -372,6 +372,9 @@ app.registerExtension({
       this._zeonXyGridDims = null;
       this._zeonXyExecPrompt = null;
       this._zeonXyExecWorkflow = null;
+      this._zeonXyRunMap = null;
+      this._zeonXyRunInfo = null;
+      _runNodes.delete(this);
       if (origRemoved) return origRemoved.apply(this, arguments);
     };
   },
@@ -595,6 +598,72 @@ app.graphToPrompt = async function (...args) {
   return result;
 };
 
+// ── live run feedback + sweep trace (v0.36.5) ───────────────────────────────
+// The node shows which cell is EXECUTING and the values it runs with ("▶ 2/4 ·
+// X 0.4"). Without it there was zero run feedback: the per-cell values live only
+// inside the queued prompts (the live target node is deliberately never written),
+// so the axis "now:" line stays flat through even a perfect plot. Reported from
+// the wild as "the value never walks" on a sweep that was actually walking.
+// Keyed off WebSocket "executing" events matched to each cell's prompt_id - the
+// queue loop itself finishes in about a second and would only flash.
+const _runNodes = new Set();
+
+function runVal(v) {
+  const s = String(v ?? "");
+  return s.length > 24 ? s.slice(0, 23) + "…" : s;
+}
+
+function setRunline(node, text, live) {
+  const wrap = node._zeonXyRoot?.querySelector(".z-xy-counter-wrap");
+  if (!wrap) return;
+  let line = wrap.querySelector(".z-xy-runline");
+  if (!line) {
+    line = document.createElement("div");
+    line.className = "z-xy-runline";
+    line.title = "Live plot progress: which cell is running and the values it runs with.";
+    wrap.appendChild(line);
+  }
+  line.textContent = text;
+  line.classList.toggle("live", !!live);
+}
+
+api.addEventListener("executing", ({ detail }) => {
+  try {
+    const d = (detail && typeof detail === "object") ? detail : null;
+    const pid = String((d && d.prompt_id) || (d ? "" : detail) || "");
+    if (!pid) return;
+    for (const node of _runNodes) {
+      if (!node._zeonXyRoot) { _runNodes.delete(node); continue; }
+      const info = node._zeonXyRunInfo;
+      const cell = info && node._zeonXyRunMap?.get(pid);
+      if (!cell) continue;
+      const k = cell.yi * info.cols + cell.xi + 1;
+      if (d && d.node != null) {
+        setRunline(node, `▶ ${k}/${info.total} · X ${runVal(cell.xValue)}`
+          + (info.hasY ? ` · Y ${runVal(cell.yValue)}` : ""), true);
+      } else {
+        // node null = this prompt (cell) finished executing.
+        info.done = Math.min(info.total, (info.done || 0) + 1);
+        if (info.done >= info.total) setRunline(node, `✓ ${info.total}/${info.total} · plot finished`, false);
+        else setRunline(node, `✓ ${info.done}/${info.total} done · next…`, true);
+      }
+    }
+  } catch (_e) { /* run feedback must never break a plot */ }
+});
+
+api.addEventListener("execution_error", ({ detail }) => {
+  try {
+    const pid = String(detail?.prompt_id || "");
+    if (!pid) return;
+    for (const node of _runNodes) {
+      if (node._zeonXyRunMap?.has(pid)) {
+        setRunline(node, "⚠ plot errored - see the ComfyUI console", false);
+        break;
+      }
+    }
+  } catch (_e) {}
+});
+
 // ── the plot driver (patches app.queuePrompt) ────────────────────────────────
 
 function isXyActive(node) {
@@ -668,8 +737,13 @@ app.queuePrompt = async function (...args) {
     const xName = axisReady(state.x) ? axisDisplayName(state.x, node) : "";
     const yName = axisReady(state.y) ? axisDisplayName(state.y, node) : "";
 
+    node._zeonXyRunMap = new Map();
+    node._zeonXyRunInfo = { cols, rows, total, done: 0, hasY: ys.length > 0 };
+    _runNodes.add(node);
+
     return await runQueueLoop(async () => {
       let last;
+      let queuedN = 0;
       try {
         for (let yi = 0; yi < rows; yi++) {
           for (let xi = 0; xi < cols; xi++) {
@@ -682,6 +756,12 @@ app.queuePrompt = async function (...args) {
             try {
               const a = args.slice(); a[1] = 1;   // batchCount=1, keep number + queueNodeIds
               last = await _origQueuePrompt.apply(app, a);
+              queuedN++;
+              // Track the cell's prompt_id so the executing listener can show
+              // LIVE progress (which cell is running, and with what values).
+              const pid = (last && typeof last === "object" && last.prompt_id) ? String(last.prompt_id) : null;
+              if (pid) node._zeonXyRunMap.set(pid, { xi, yi, xValue: xs[xi], yValue: ys[yi] });
+              setRunline(node, `queued ${queuedN}/${total}…`, true);
             } catch (err) {
               console.error("ZeonmkII.XYPlot: cell enqueue failed", err);
             }
@@ -689,6 +769,7 @@ app.queuePrompt = async function (...args) {
         }
       } finally {
         node._zeonXyRun = null;   // never leak the cursor into a later normal run
+        setRunline(node, `queued ${queuedN}/${total} · running…`, true);
       }
       return last;
     });

@@ -118,6 +118,12 @@ textarea.z-xy-input{resize:vertical;min-height:92px;white-space:pre-wrap;overflo
 /* counter chip + options */
 .z-xy-counter{text-align:center;font-size:13px;font-weight:600;color:#fff;background:var(--zeon-acc,#A20000);border-radius:6px;padding:7px;}
 .z-xy-counter.muted{background:rgba(255,255,255,.06);color:#9a9a9a;font-weight:500;}
+/* Live run feedback (v0.36.5): which cell is executing and the swept values it
+   runs with. Muted grey when idle/done, amber while a cell is running. DOM-only,
+   created by the executing-event path - never part of renderBody, so it can't
+   dirty a workflow (Vue Compat #18). */
+.z-xy-runline{font-size:11px;color:#8a8a8a;margin-top:6px;text-align:center;}
+.z-xy-runline.live{color:#e2b56a;font-weight:600;}
 .z-xy-opts{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;}
 .z-xy-opts2{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;}
 .z-xy-opts3{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}

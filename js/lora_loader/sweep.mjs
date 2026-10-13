@@ -277,7 +277,13 @@ function inject(entry, axis, value, node) {
   const ps = currentPromptState(entry, st);
   // promptState maps the rows 1:1, so the live index addresses the same row.
   const row = ps.loras && ps.loras[idx];
-  if (!row) return;
+  if (!row) {
+    // The prompt's state blob holds fewer rows than the live node (saved by an
+    // older build, or clobbered mid-chain). Patching would be a silent no-op -
+    // every square would run the row's live value. Say so loudly.
+    console.warn(`[LoRA Loader ZeonmkII] XY Plot could not patch row ${idx + 1} in the queued prompt (prompt state has ${(ps.loras && ps.loras.length) || 0} rows, live node has ${rows.length}). This square runs the live value instead. Re-pick the axis, or report this - it means the prompt and the node disagree.`);
+    return;
+  }
   const sf = effectiveSubField(st, axis);
   if (sf === "sm") {
     row.sm = strengthOf(value);
